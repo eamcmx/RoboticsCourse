@@ -235,6 +235,67 @@ rotY(90) * rotX(90)"></div>
         </div>
       </section>
 
+      <section class="lecture-section" id="fixed-vs-mobile">
+        <h2>Fixed-axis vs mobile-axis composition</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Up to here every rotation has been around a <em>fixed</em> world axis. There's a second valid convention where each rotation is around the <em>current mobile</em> axis instead — which gives a different end pose for the same numbers. This is one of the most common sources of confusion when reading robotics papers, and it's worth seeing it in motion.</p>
+          </div>
+          <p>
+            So far every slider has rotated around the world x, y, or z. There's an alternative convention where
+            each successive rotation happens around the <strong>mobile</strong> frame's current axis — labelled
+            U, V, W to distinguish from the fixed X, Y, Z. The same three numbers (say 90°, 90°, 0°) will land
+            you in <em>different</em> end poses depending on which convention you read them under.
+          </p>
+          <p>
+            The math difference is just left-vs-right multiplication. With column vectors:
+          </p>
+          <ul>
+            <li><strong>Fixed-axis (X / Y / Z)</strong> — each new rotation pre-multiplies the running composite. The matrix product reads "last applied on the left, first applied on the right."</li>
+            <li><strong>Mobile-axis (U / V / W)</strong> — each new rotation post-multiplies, because the new rotation is expressed in the frame produced by all the previous ones. The matrix product reads "first applied on the left, last applied on the right."</li>
+          </ul>
+          <p>
+            The widget below has three configurable steps. Each step lets you pick a fixed-axis (X/Y/Z) or
+            mobile-axis (U/V/W) rotation. Try the same three angles under both interpretations and watch where
+            the mobile frame lands.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Three sequential rotations · pick fixed or mobile per step</span>
+            <span class="widget-tag">Composite</span>
+          </header>
+          <div class="widget-body">
+            <div data-composite-viewer
+                 data-steps="3"
+                 data-allow-translation="false"></div>
+          </div>
+        </figure>
+
+        <div class="callout">
+          <div class="callout-title">A concrete experiment</div>
+          <p>
+            Set all three steps to 90°. First make all of them <strong>X, Y, Z</strong> (fixed-axis) and note the
+            ending matrix and the visible orientation. Now switch all three to <strong>U, V, W</strong>
+            (mobile-axis), keeping the same 90° values. The matrix is different and the frame lands somewhere
+            else. Same numbers, different geometry — because the second rotation was around <em>v</em>, not y,
+            and v had already moved.
+          </p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Which convention does this course use?</div>
+          <p>
+            We default to fixed-axis (X/Y/Z) for the first half of the term — it's easier to reason about and
+            it's what the elementary rotation matrices Rx(θ), Ry(θ), Rz(θ) do when you compose them with
+            premultiplication. When we get to the Denavit–Hartenberg convention in Module 2, we'll switch to
+            mobile-axis composition, because that's the natural way to describe a robot's joint chain — each
+            link's frame is expressed relative to the previous link, not relative to the world.
+          </p>
+        </div>
+      </section>
+
       <section class="lecture-section" id="recap-end">
         <h2>Quick recap</h2>
         <div class="prose">
@@ -297,6 +358,7 @@ rotY(90) * rotX(90)"></div>
         <li><a href="#rz">Rotation around Z</a></li>
         <li><a href="#composite">Composite rotations</a></li>
         <li><a href="#order-matters">Order matters</a></li>
+        <li><a href="#fixed-vs-mobile">Fixed vs mobile axis</a></li>
         <li><a href="#recap-end">Quick recap</a></li>
         <li><a href="#homework">Homework</a></li>
       </ol>
@@ -331,11 +393,13 @@ rotY(90) * rotX(90)"></div>
     import { mountFrameViewer } from '../js/widgets/frame-viewer.js';
     import { mountMatrixStepper, MATRIX_DEFS } from '../js/widgets/matrix-stepper.js';
     import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    import { mountCompositeViewer } from '../js/widgets/composite-viewer.js';
 
     document.querySelectorAll('[data-frame-viewer]').forEach(mountFrameViewer);
     document.querySelectorAll('[data-matrix-stepper]').forEach(el =>
       mountMatrixStepper(el, MATRIX_DEFS[el.dataset.id]));
     document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+    document.querySelectorAll('[data-composite-viewer]').forEach(mountCompositeViewer);
 
     const links = document.querySelectorAll('.lecture-toc a');
     const sections = [...document.querySelectorAll('.lecture-section')];

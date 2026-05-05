@@ -894,6 +894,97 @@ input[type="range"]::-moz-range-thumb {
 }
 .site-footer a { color: var(--ink-soft); }
 
+/* ----- composite viewer (sequential steps with fixed/mobile axis) ----- */
+.composite-viewer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+@media (min-width: 760px) {
+  .composite-viewer { grid-template-columns: minmax(0, 5fr) minmax(0, 4fr); }
+}
+.composite-viewer-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+}
+.composite-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.composite-step {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.composite-step-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.composite-step-num {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  background: rgba(47, 84, 150, 0.08);
+  border-radius: 999px;
+}
+.composite-step-fixedlabel {
+  font-weight: 500;
+  color: var(--ink);
+}
+.composite-step-around { color: var(--ink-muted); }
+.composite-step select {
+  font: inherit;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.composite-axis-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.composite-axis-divider {
+  color: var(--border);
+  margin: 0 4px;
+  user-select: none;
+}
+.composite-axis {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+.composite-axis input { display: none; }
+.composite-axis input:checked + span {
+  background: rgba(47, 84, 150, 0.12);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.composite-axis:hover { background: rgba(47, 84, 150, 0.05); }
+.composite-step-tag { font-size: 0.78rem; }
+
 /* ----- transform viewer (multi-slider 4x4) ----- */
 .transform-viewer {
   display: grid;
