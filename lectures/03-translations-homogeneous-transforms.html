@@ -49,7 +49,7 @@
         <h2>The problem with rotation alone</h2>
         <div class="prose">
           <div class="voice">
-            <p>Okay so we have all this beautiful machinery for rotations. But we have a problem. Rotation tells us how something is oriented — it doesn't tell us where it is. So we need something else.</p>
+            <p>Rotations describe orientation only. They tell you which direction the gripper is facing, but not where in the workspace it sits. To capture position we need translation, and to chain transformations cleanly we want both packed into a single matrix.</p>
           </div>
           <p>
             A 3×3 rotation matrix R describes how the axes of the mobile frame are oriented relative to the fixed
@@ -65,18 +65,28 @@
       </section>
 
       <section class="lecture-section" id="translation">
-        <h2>Pure translation</h2>
+        <h2>Pure translation, no rotation</h2>
         <div class="prose">
           <p>
             Start with the simplest case: no rotation, just translation. The mobile frame is parallel to the
-            fixed frame but its origin is offset by a vector p = (pₓ, p_y, p_z).
-          </p>
-          <p>
-            We could store the translation as a 3-vector and remember to add it after every rotation. That works,
-            but it doesn't compose nicely — we'd have to track rotations and translations separately. The clever
-            move is to embed everything in a 4×4 matrix.
+            fixed frame but its origin is offset by a vector p = (pₓ, p_y, p_z). Drag the three sliders below to
+            translate frame B around. The 4×4 matrix on the right updates live — notice the rotation block stays
+            fixed at the identity, and only the right column changes.
           </p>
         </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Translate frame B</span>
+            <span class="widget-tag">3D · pure translation</span>
+          </header>
+          <div class="widget-body">
+            <div data-transform-viewer
+                 data-axes=""
+                 data-translate-axes="x,y,z"
+                 data-initial-t="1,0.5,0"></div>
+          </div>
+        </figure>
 
         <figure class="widget">
           <header class="widget-header">
@@ -84,11 +94,11 @@
             <span class="widget-tag">Stepper · 4×4</span>
           </header>
           <div class="widget-body">
-            <div data-matrix-stepper data-id="tx"></div>
+            <div data-matrix-stepper data-id="tx" data-reveals="#tx-formula"></div>
           </div>
         </figure>
 
-        <div class="math-display" id="tx-formula"></div>
+        <div class="math-display gated" id="tx-formula"></div>
 
         <div class="prose">
           <p>
@@ -102,24 +112,42 @@
         <h2>The general homogeneous transform</h2>
         <div class="prose">
           <div class="voice">
-            <p>So now we put everything together. The rotation goes in the top-left three by three. The translation goes in the right column. The bottom row is zero zero zero one. That's the homogeneous transformation matrix.</p>
+            <p>Pack the rotation into the top-left 3×3 block, the translation into the right column, and a fixed bottom row [0 0 0 1]. The result is the homogeneous transformation matrix — a 4×4 that holds both kinds of information and composes by ordinary matrix multiplication.</p>
           </div>
           <p>
-            In general, a homogeneous transform T packs a rotation R and a translation p into one 4×4:
+            In general, a homogeneous transform T packs a rotation R and a translation p into one 4×4. The
+            widget below has all six sliders — three for rotation around the fixed axes (same convention as
+            Lecture 02: each slider rotates around its world axis) and three for translation. As you drag them,
+            watch how the 4×4 matrix updates — the rotation slider changes affect only the top-left 3×3 block,
+            and the translation sliders affect only the right column.
           </p>
         </div>
 
         <figure class="widget">
           <header class="widget-header">
-            <span class="widget-title">The general transform T</span>
-            <span class="widget-tag">Stepper · 4×4</span>
+            <span class="widget-title">A general transform T — six sliders</span>
+            <span class="widget-tag">3D · rotation + translation</span>
           </header>
           <div class="widget-body">
-            <div data-matrix-stepper data-id="homog_general"></div>
+            <div data-transform-viewer
+                 data-axes="x,y,z"
+                 data-translate-axes="x,y,z"
+                 data-initial-r="0,0,30"
+                 data-initial-t="1,0,0"></div>
           </div>
         </figure>
 
-        <div class="math-display" id="homog-formula"></div>
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">The structure of T — entry by entry</span>
+            <span class="widget-tag">Stepper · 4×4</span>
+          </header>
+          <div class="widget-body">
+            <div data-matrix-stepper data-id="homog_general" data-reveals="#homog-formula"></div>
+          </div>
+        </figure>
+
+        <div class="math-display gated" id="homog-formula"></div>
 
         <div class="callout">
           <div class="callout-title">Why the bottom row?</div>
@@ -133,65 +161,33 @@
         </div>
       </section>
 
-      <section class="lecture-section" id="composing">
-        <h2>Composing translation and rotation</h2>
+      <section class="lecture-section" id="point-transform">
+        <h2>Transforming a point through T</h2>
         <div class="prose">
           <p>
-            With T as a 4×4, you can chain transformations the same way you chained rotations: multiply matrices,
-            right-to-left. The product of two homogeneous transforms is another homogeneous transform — the bottom
-            row stays [0 0 0 1] automatically.
-          </p>
-          <p>
-            Try a few in the sandbox. <code>transl(dx, dy, dz)</code> builds a pure-translation 4×4. <code>homog(R, p)</code>
-            builds a generic one from a 3×3 rotation and a 3-vector translation.
+            Take a point a fixed inside the mobile frame at coordinates (0.3, 0.4, 0.5). As you change T using
+            the sliders below, the point moves with the frame — and the widget shows you both its B-frame
+            coordinates (which never change) and its A-frame coordinates (which do). The relationship is the
+            equation we'll use a thousand times this term:
           </p>
         </div>
+
+        <div class="math-display" id="point-formula"></div>
 
         <figure class="widget">
           <header class="widget-header">
-            <span class="widget-title">Sandbox · build and compose</span>
-            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
+            <span class="widget-title">a_xyz = T · a_uvw</span>
+            <span class="widget-tag">3D · tracked point</span>
           </header>
           <div class="widget-body">
-            <div data-code-sandbox
-                 data-rows="9"
-                 data-initial="% A pure translation along x by 2 units.
-transl(2, 0, 0)
-
-% A 90° rotation around z, lifted to a 4×4 (translation = 0).
-homog(rotZ(90), [0; 0; 0])
-
-% Compose: rotate around z, then translate along the new x.
-homog(rotZ(90), [0; 0; 0]) * transl(2, 0, 0)"></div>
+            <div data-transform-viewer
+                 data-axes="x,y,z"
+                 data-translate-axes="x,y,z"
+                 data-initial-r="20,0,0"
+                 data-initial-t="0.5,0.5,0"
+                 data-tracked-point="0.3,0.4,0.5"></div>
           </div>
         </figure>
-
-        <div class="callout">
-          <div class="callout-title">Reading composite transforms</div>
-          <p>
-            <code>T_{AC} = T_{AB} · T_{BC}</code> reads as: <em>"to express something from frame C in frame A, go
-            from C to B (rightmost), then from B to A (leftmost)."</em> Right-to-left composition again, same rule
-            as for rotations. Once you internalise this you can chain any number of frames — that's exactly how
-            we'll handle a multi-joint robot in the next module.
-          </p>
-        </div>
-      </section>
-
-      <section class="lecture-section" id="point-transform">
-        <h2>Transforming a point</h2>
-        <div class="prose">
-          <p>
-            To find a point's coordinates in frame A, given its coordinates in frame B and the transform T_{AB}:
-          </p>
-        </div>
-        <div class="math-display" id="point-formula"></div>
-        <div class="prose">
-          <p>
-            Same shape as in Lecture 01 — but now T is 4×4 and the point is a 4-vector ending in 1. The padding 1
-            picks up the translation column; the rotation block does its usual job on the first three components.
-            Try it:
-          </p>
-        </div>
 
         <figure class="widget">
           <header class="widget-header">
@@ -210,6 +206,46 @@ p_A = T * p_B"></div>
         </figure>
       </section>
 
+      <section class="lecture-section" id="composing">
+        <h2>Order matters: rotate-then-translate vs translate-then-rotate</h2>
+        <div class="prose">
+          <p>
+            Like with rotations, composition order matters. <strong>Rotate first, then translate</strong> moves
+            the frame's origin in the <em>world</em> direction by p. <strong>Translate first, then rotate</strong>
+            moves the origin in what is initially the world direction, but the rotation then sweeps that origin
+            around the world axis — landing somewhere else entirely. Try both in the sandbox:
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Sandbox · build &amp; compose</span>
+            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="11"
+                 data-initial="% Rotate first, then translate (translation is in world coords).
+homog(rotZ(90), [0; 0; 0]) * transl(2, 0, 0)
+
+% Translate first, then rotate (the prior translation gets carried by the rotation).
+transl(2, 0, 0) * homog(rotZ(90), [0; 0; 0])
+
+% Compare the right column of each result — that's the translation block."></div>
+          </div>
+        </figure>
+
+        <div class="callout">
+          <div class="callout-title">Reading composite transforms</div>
+          <p>
+            <code>T_AC = T_AB · T_BC</code> reads as: <em>"to express something from frame C in frame A, go
+            from C to B (rightmost), then from B to A (leftmost)."</em> Right-to-left composition again, same rule
+            as for rotations. Once you internalise this you can chain any number of frames — that's exactly how
+            we'll handle a multi-joint robot in the next module.
+          </p>
+        </div>
+      </section>
+
       <section class="lecture-section" id="recap">
         <h2>Quick recap</h2>
         <div class="prose">
@@ -218,7 +254,7 @@ p_A = T * p_B"></div>
             <li>The 4×4 homogeneous transform packs R into the top-left, p into the right column, [0 0 0 1] into the bottom row.</li>
             <li>The bottom row is what makes translation behave as matrix multiplication.</li>
             <li>Homogeneous transforms compose by ordinary right-to-left matrix multiplication.</li>
-            <li>To transform a point, append a 1 to make it a 4-vector and multiply.</li>
+            <li>To transform a point, append a 1 to make it a 4-vector and multiply by T.</li>
           </ul>
         </div>
       </section>
@@ -228,9 +264,9 @@ p_A = T * p_B"></div>
           <div class="homework-eyebrow">Homework 03 · due before next session</div>
           <h3>Build, compose, transform</h3>
           <ol>
-            <li>By hand: write the homogeneous transform that translates by (1, 2, 3) and rotates by 30° around z. Show your work.</li>
+            <li>By hand: write the homogeneous transform that translates by (1, 2, 3) and then rotates by 30° around z. Show your work as a single matrix product, then multiply it out.</li>
             <li>In the sandbox: build the same transform two ways — first as a single <code>homog(rotZ(30), [1;2;3])</code>, then as <code>transl(1,2,3) * homog(rotZ(30), [0;0;0])</code>. Are they equal? If not, why not? Try the other order: <code>homog(rotZ(30), [0;0;0]) * transl(1,2,3)</code> — and explain what changed.</li>
-            <li>Take the point (1, 0, 0) in the rotated/translated frame and find its coordinates in the original frame. Verify by the geometric drawing.</li>
+            <li>Take the point (1, 0, 0) in the rotated/translated frame and find its coordinates in the original frame. Verify your answer by sketching the frames on paper and reading the coordinates off the picture.</li>
           </ol>
           <div class="homework-deliverables">
             <div class="deliverable">
@@ -270,8 +306,8 @@ p_A = T * p_B"></div>
         <li><a href="#motivation">The problem</a></li>
         <li><a href="#translation">Pure translation</a></li>
         <li><a href="#homogeneous">The general transform</a></li>
-        <li><a href="#composing">Composing</a></li>
         <li><a href="#point-transform">Transforming a point</a></li>
+        <li><a href="#composing">Order matters</a></li>
         <li><a href="#recap">Quick recap</a></li>
         <li><a href="#homework">Homework</a></li>
       </ol>
@@ -302,11 +338,11 @@ p_A = T * p_B"></div>
   </script>
 
   <script type="module">
-    import { mountFrameViewer } from '../js/widgets/frame-viewer.js';
     import { mountMatrixStepper, MATRIX_DEFS } from '../js/widgets/matrix-stepper.js';
     import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    import { mountTransformViewer } from '../js/widgets/transform-viewer.js';
 
-    document.querySelectorAll('[data-frame-viewer]').forEach(mountFrameViewer);
+    document.querySelectorAll('[data-transform-viewer]').forEach(mountTransformViewer);
     document.querySelectorAll('[data-matrix-stepper]').forEach(el =>
       mountMatrixStepper(el, MATRIX_DEFS[el.dataset.id]));
     document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);

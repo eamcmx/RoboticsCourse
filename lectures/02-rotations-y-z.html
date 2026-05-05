@@ -48,7 +48,7 @@
         <h2>Quick recap of last time</h2>
         <div class="prose">
           <div class="voice">
-            <p>Okay, so let's continue with our class. Just for a quick recap, let's try to remember what we have seen on the last lessons.</p>
+            <p>Quick recap before we extend the construction to the other two axes. The same projection trick will work each time — only the role of the axes shifts.</p>
           </div>
           <p>
             Last time we built the rotation matrix Rx(θ) by projecting the mobile-frame axes (u, v, w) onto the fixed
@@ -67,7 +67,7 @@
         <h2>Rotation around Y</h2>
         <div class="prose">
           <div class="voice">
-            <p>The same logic. Believe me, there are no surprises. v stays put because it's along y; u and w move.</p>
+            <p>The procedure is identical to last time. Around y, the v axis is invariant; u and w rotate in the x–z plane. There are no surprises in the derivation — only the sign pattern shifts to a different entry of the matrix.</p>
           </div>
           <p>
             Now the rotation is around the fixed y-axis. <strong>v</strong> doesn't move — it's along y. <strong>u</strong>
@@ -92,13 +92,13 @@
             <span class="widget-tag">Stepper</span>
           </header>
           <div class="widget-body">
-            <div data-matrix-stepper data-id="ry"></div>
+            <div data-matrix-stepper data-id="ry" data-reveals="#ry-formula, #ry-callout"></div>
           </div>
         </figure>
 
-        <div class="math-display" id="ry-formula"></div>
+        <div class="math-display gated" id="ry-formula"></div>
 
-        <div class="callout">
+        <div class="callout gated" id="ry-callout">
           <div class="callout-title">Notice the sign pattern</div>
           <p>
             The minus sign sits on a different entry than in Rx. For Ry the −sin θ is at row 1, column 3.
@@ -134,29 +134,31 @@
             <span class="widget-tag">Stepper</span>
           </header>
           <div class="widget-body">
-            <div data-matrix-stepper data-id="rz"></div>
+            <div data-matrix-stepper data-id="rz" data-reveals="#rz-formula"></div>
           </div>
         </figure>
 
-        <div class="math-display" id="rz-formula"></div>
+        <div class="math-display gated" id="rz-formula"></div>
       </section>
 
       <section class="lecture-section" id="composite">
         <h2>Composite rotations</h2>
         <div class="prose">
           <div class="voice">
-            <p>Okay so what happens if we want to do more than one rotation? Let's say first we rotate around x, then around y, then around z. How do we represent that?</p>
+            <p>What if we want to apply more than one rotation in sequence — first around x, then around y, then around z, all in the fixed frame? Each rotation transforms the result of the previous one, and the composed transformation is a single matrix product.</p>
           </div>
           <p>
-            In robotics we usually multiply rotations <strong>right-to-left</strong>. The leftmost matrix is the
-            <em>last</em> rotation that gets applied; the rightmost is the <em>first</em>. Why? Because each
-            successive rotation is expressed in the frame produced by the previous ones, and you read the
-            stack from the inside out. The composed rotation matrix is
+            We use the <strong>fixed-axis convention</strong> in this course: each rotation is around the world
+            x, y, or z axis. To compose three of them in sequence — first apply Rx(θ_x) to a vector, then Ry(θ_y),
+            then Rz(θ_z) — write the matrix product so the <em>first applied</em> rotation is on the
+            <em>right</em> (because matrix multiplication on column vectors reads right-to-left):
           </p>
-          <div class="math-display" id="composite-formula"></div>
+          <div class="math-display gated" id="composite-formula"></div>
           <p>
-            The widget below has all three sliders. As you change them, the mobile frame is updated by composing
-            Rx(θ₁) · Ry(θ₂) · Rz(θ₃) right-to-left. The matrix on the side is the composed result.
+            The widget below has all three sliders. As you change them, the mobile frame is updated by the
+            fixed-axis composition Rz(θ_z) · Ry(θ_y) · Rx(θ_x) — meaning the x slider rotates the frame around the
+            world x axis, the y slider around the world y, and the z slider around the world z, regardless of
+            what the other sliders are doing. The matrix on the side is the composed result.
           </p>
         </div>
 
@@ -185,9 +187,10 @@
           <div class="widget-body">
             <div data-code-sandbox
                  data-rows="6"
-                 data-initial="% Composite of Rx(45) · Ry(30) · Rz(15), right-to-left.
-% First we apply Rz(15), then Ry(30), then Rx(45).
-rotX(45) * rotY(30) * rotZ(15)"></div>
+                 data-initial="% Fixed-axis convention: first apply Rx(45), then Ry(30), then Rz(15),
+% all around the world axes. The matrix product is written
+% with the first-applied rotation on the right:
+rotZ(15) * rotY(30) * rotX(45)"></div>
           </div>
         </figure>
       </section>
@@ -196,7 +199,7 @@ rotX(45) * rotY(30) * rotZ(15)"></div>
         <h2>Order matters</h2>
         <div class="prose">
           <div class="voice">
-            <p>Just remember that in matrix algebra the multiplication of matrices is not commutative. So that means that A times B is not the same as B times A.</p>
+            <p>Reminder: matrix multiplication is not commutative. A·B ≠ B·A in general. Physically, that means rotating 90° around y and then 90° around x lands you somewhere different from doing the same two rotations in the opposite order. The widget above lets you check.</p>
           </div>
           <p>
             Matrix multiplication is not commutative. Rx · Ry · Rz is generally <em>not</em> equal to
@@ -249,10 +252,10 @@ rotY(90) * rotX(90)"></div>
           <div class="homework-eyebrow">Homework 02 · due before next session</div>
           <h3>Compose by hand, verify in code</h3>
           <ol>
-            <li>By hand: write out the matrix for Rx(45°) · Ry(30°) · Rz(15°). Multiply the matrices in the right order. Don't use a calculator for the sin/cos values yet — keep them symbolic.</li>
-            <li>Open the sandbox and compute the same product numerically. Compare.</li>
-            <li>Now compute Rz(15°) · Ry(30°) · Rx(45°) and confirm it is different.</li>
-            <li>Pick any three angles. Compute Rx · Ry · Rz, then compute (Rx · Ry · Rz)ᵀ. What do you notice? Why?</li>
+            <li>By hand: write out the matrix for the sequence "rotate the frame 45° around fixed x, then 30° around fixed y, then 15° around fixed z." Under the fixed-axis convention this is M = Rz(15°) · Ry(30°) · Rx(45°). Multiply the matrices in that order, keeping the sin/cos symbolic until the final step.</li>
+            <li>Open the sandbox and compute the same product numerically. Compare to your by-hand result.</li>
+            <li>Now compute the matrices in the opposite order: Rx(45°) · Ry(30°) · Rz(15°). It corresponds to the geometrically different sequence "first 15° around z, then 30° around y, then 45° around x" — confirm it is a different matrix.</li>
+            <li>Pick any three angles and compute M = Rz · Ry · Rx, then compute Mᵀ. Does Mᵀ equal M⁻¹? Why? (Hint: rotation matrices are orthogonal.)</li>
           </ol>
           <div class="homework-deliverables">
             <div class="deliverable">
@@ -313,7 +316,7 @@ rotY(90) * rotX(90)"></div>
           ['rx-recap', 'R_x(\\theta) = \\begin{pmatrix} 1 & 0 & 0 \\\\ 0 & \\cos\\theta & -\\sin\\theta \\\\ 0 & \\sin\\theta & \\cos\\theta \\end{pmatrix}'],
           ['ry-formula', 'R_y(\\theta) = \\begin{pmatrix} \\cos\\theta & 0 & \\sin\\theta \\\\ 0 & 1 & 0 \\\\ -\\sin\\theta & 0 & \\cos\\theta \\end{pmatrix}'],
           ['rz-formula', 'R_z(\\theta) = \\begin{pmatrix} \\cos\\theta & -\\sin\\theta & 0 \\\\ \\sin\\theta & \\cos\\theta & 0 \\\\ 0 & 0 & 1 \\end{pmatrix}'],
-          ['composite-formula', 'R_{xyz}(\\theta_1, \\theta_2, \\theta_3) = R_x(\\theta_1) \\cdot R_y(\\theta_2) \\cdot R_z(\\theta_3)'],
+          ['composite-formula', 'M(\\theta_x, \\theta_y, \\theta_z) = R_z(\\theta_z) \\cdot R_y(\\theta_y) \\cdot R_x(\\theta_x)'],
         ];
         renders.forEach(([id, tex]) => {
           const el = document.getElementById(id);

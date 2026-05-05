@@ -81,14 +81,18 @@ function makeFrame(labels, colors, length = 1) {
   return group;
 }
 
-// Build a rotation matrix Rx*Ry*Rz given Euler angles (degrees).
-// We compose right-to-left like the course: result = Rx · Ry · Rz
+// Build a fixed-axis rotation matrix from Euler angles (degrees).
+// Each slider rotates the mobile frame around the corresponding FIXED axis.
+// The order of application is x → y → z (Rx applied first to a column vector).
+// For column-vector composition that means: result = Rz · Ry · Rx.
+// (If we composed Rx · Ry · Rz instead, the z slider would rotate around w —
+// the already-moved mobile z — which is the mobile-axis convention.)
 function composeRotation(rxDeg, ryDeg, rzDeg) {
   const m = new THREE.Matrix4();
   const ex = new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(rxDeg));
   const ey = new THREE.Matrix4().makeRotationY(THREE.MathUtils.degToRad(ryDeg));
   const ez = new THREE.Matrix4().makeRotationZ(THREE.MathUtils.degToRad(rzDeg));
-  m.copy(ex).multiply(ey).multiply(ez);
+  m.copy(ez).multiply(ey).multiply(ex);
   return m;
 }
 

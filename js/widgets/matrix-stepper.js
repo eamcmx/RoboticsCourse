@@ -3,10 +3,16 @@
 // Click-to-reveal Socratic matrix derivation. Each cell starts
 // as "?" with a question prompt; clicking reveals the entry and
 // updates the prompt for the next cell.
+//
+// Gated reveal: if the host element has a `data-reveals="<selector>"`
+// attribute, all matched elements stay hidden (via the .gated CSS
+// class) until every cell in the stepper has been revealed. The
+// host also dispatches a `stepper:complete` event on completion.
 // ------------------------------------------------------------
 // Usage:
 //
-//   <div data-matrix-stepper data-id="rx"></div>
+//   <div data-matrix-stepper data-id="rx" data-reveals="#rx-formula"></div>
+//   <div id="rx-formula" class="math-display gated">…</div>
 //
 //   import { mountMatrixStepper, MATRIX_DEFS } from '.../matrix-stepper.js';
 //   document.querySelectorAll('[data-matrix-stepper]').forEach(el =>
@@ -17,30 +23,30 @@
 export const MATRIX_DEFS = {
   identity: {
     title: "The identity matrix — I₃",
-    intro: "Two coordinate frames living happily together: same origin, same orientation. Click each cell to fill in the rotation matrix that describes \"nothing has changed.\"",
+    intro: "Two coordinate frames perfectly overlapping: same origin, same orientation. Click each cell to fill in the rotation matrix that says \"nothing has moved.\"",
     cells: [
-      { value: "1", prompt: "How much of u (mobile x) lies along x (fixed)? — u is exactly along x, so the projection is …", reveal: "u·x = 1. The mobile x-axis is fully aligned with the fixed x-axis." },
-      { value: "0", prompt: "How much of v (mobile y) lies along x?", reveal: "v·x = 0. They are perpendicular." },
-      { value: "0", prompt: "How much of w (mobile z) lies along x?", reveal: "w·x = 0. They are perpendicular." },
-      { value: "0", prompt: "How much of u lies along y?", reveal: "u·y = 0." },
-      { value: "1", prompt: "How much of v lies along y?", reveal: "v·y = 1. Fully aligned." },
-      { value: "0", prompt: "How much of w lies along y?", reveal: "w·y = 0." },
-      { value: "0", prompt: "How much of u lies along z?", reveal: "u·z = 0." },
-      { value: "0", prompt: "How much of v lies along z?", reveal: "v·z = 0." },
-      { value: "1", prompt: "And finally, how much of w lies along z?", reveal: "w·z = 1. The matrix is complete: it is the identity. Everywhere a frame matches itself, you get 1; everywhere axes are perpendicular, you get 0." },
+      { value: "1", prompt: "u (mobile x) lies along x (fixed). The projection u·x is …", reveal: "u·x = 1. The mobile x-axis is fully aligned with the fixed x-axis." },
+      { value: "0", prompt: "v (mobile y) is perpendicular to x. v·x = …", reveal: "v·x = 0. They are perpendicular." },
+      { value: "0", prompt: "w (mobile z) is perpendicular to x. w·x = …", reveal: "w·x = 0. They are perpendicular." },
+      { value: "0", prompt: "u is along x, so u·y = …", reveal: "u·y = 0." },
+      { value: "1", prompt: "v lies along y. v·y = …", reveal: "v·y = 1. Fully aligned." },
+      { value: "0", prompt: "w is perpendicular to y. w·y = …", reveal: "w·y = 0." },
+      { value: "0", prompt: "u is perpendicular to z. u·z = …", reveal: "u·z = 0." },
+      { value: "0", prompt: "v is perpendicular to z. v·z = …", reveal: "v·z = 0." },
+      { value: "1", prompt: "And finally w lies along z. w·z = …", reveal: "w·z = 1. The matrix is complete: it is the identity. Every diagonal entry is 1; every off-diagonal entry is 0." },
     ],
   },
 
   rx: {
     title: "Rotation around x — Rx(θ)",
-    intro: "Now rotate the mobile frame by θ around the fixed x axis. u stays put; v and w tilt. Fill in the matrix entry by entry, the same way: project u, v, w onto x, y, z.",
+    intro: "Rotate the mobile frame by θ around the fixed x axis. u stays put; v and w tilt in the y–z plane. Project them onto x, y, z to read off each entry.",
     cells: [
-      { value: "1", prompt: "Rotation is around x, so u doesn't move. u·x = …", reveal: "u·x = 1. Rotating around x leaves u unchanged." },
+      { value: "1", prompt: "Rotation around x leaves u alone. u·x = …", reveal: "u·x = 1. Rotating around x leaves u unchanged." },
       { value: "0", prompt: "v is still perpendicular to x. v·x = …", reveal: "v·x = 0." },
       { value: "0", prompt: "w is still perpendicular to x. w·x = …", reveal: "w·x = 0. The whole first row is (1, 0, 0)." },
       { value: "0", prompt: "u is along x, so u·y = …", reveal: "u·y = 0." },
-      { value: "cos θ", prompt: "v has tilted. Its component along y is the adjacent side of the right triangle. That is …", reveal: "v·y = cos θ. Adjacent over hypotenuse, with hypotenuse 1." },
-      { value: "−sin θ", prompt: "w has tilted backwards along y. Its y-component is …", reveal: "w·y = −sin θ. Negative because w tipped to the −y side." },
+      { value: "cos θ", prompt: "v has tilted. Its component along y is the adjacent side of the right triangle …", reveal: "v·y = cos θ. Adjacent over hypotenuse, with hypotenuse 1." },
+      { value: "−sin θ", prompt: "w has tipped backwards along y. Its y-component is …", reveal: "w·y = −sin θ. Negative because w tipped to the −y side." },
       { value: "0", prompt: "u·z = …", reveal: "u·z = 0." },
       { value: "sin θ", prompt: "v has acquired a z-component. It is the opposite side …", reveal: "v·z = sin θ." },
       { value: "cos θ", prompt: "And w·z = …", reveal: "w·z = cos θ. Done — that is Rx(θ)." },
@@ -49,12 +55,12 @@ export const MATRIX_DEFS = {
 
   ry: {
     title: "Rotation around y — Ry(θ)",
-    intro: "Same logic: rotate around y, project the mobile axes onto the fixed ones. v stays put; u and w move.",
+    intro: "Rotate around y. v is invariant; u and w move in the x–z plane.",
     cells: [
-      { value: "cos θ", prompt: "u·x = …", reveal: "u·x = cos θ." },
+      { value: "cos θ", prompt: "u has tilted. u·x = …", reveal: "u·x = cos θ." },
       { value: "0", prompt: "v is along y, so v·x = …", reveal: "v·x = 0." },
       { value: "sin θ", prompt: "w·x = …", reveal: "w·x = sin θ." },
-      { value: "0", prompt: "u·y = …", reveal: "u·y = 0. The middle row is (0, 1, 0)." },
+      { value: "0", prompt: "u·y = …", reveal: "u·y = 0. The middle row is the y-axis itself: (0, 1, 0)." },
       { value: "1", prompt: "v·y = …", reveal: "v·y = 1." },
       { value: "0", prompt: "w·y = …", reveal: "w·y = 0." },
       { value: "−sin θ", prompt: "u·z = …", reveal: "u·z = −sin θ." },
@@ -65,7 +71,7 @@ export const MATRIX_DEFS = {
 
   rz: {
     title: "Rotation around z — Rz(θ)",
-    intro: "And around z. w stays put; u and v rotate in the xy-plane.",
+    intro: "Rotate around z. w is invariant; u and v rotate in the x–y plane.",
     cells: [
       { value: "cos θ", prompt: "u·x = …", reveal: "u·x = cos θ." },
       { value: "−sin θ", prompt: "v·x = …", reveal: "v·x = −sin θ." },
@@ -87,20 +93,20 @@ export const MATRIX_DEFS = {
     cols: 4,
     cells: [
       { value: "1", prompt: "Rotation block, top-left. No rotation, so this is …", reveal: "1." },
-      { value: "0", prompt: "…", reveal: "0." },
-      { value: "0", prompt: "…", reveal: "0." },
+      { value: "0", prompt: "Off-diagonal of the rotation block: …", reveal: "0." },
+      { value: "0", prompt: "Off-diagonal of the rotation block: …", reveal: "0." },
       { value: "d", prompt: "Top of the translation column — translation along x is …", reveal: "d." },
-      { value: "0", prompt: "…", reveal: "0." },
-      { value: "1", prompt: "…", reveal: "1." },
-      { value: "0", prompt: "…", reveal: "0." },
+      { value: "0", prompt: "Off-diagonal of the rotation block: …", reveal: "0." },
+      { value: "1", prompt: "Diagonal of the rotation block: …", reveal: "1." },
+      { value: "0", prompt: "Off-diagonal of the rotation block: …", reveal: "0." },
       { value: "0", prompt: "Translation has no y-component, so …", reveal: "0." },
-      { value: "0", prompt: "…", reveal: "0." },
-      { value: "0", prompt: "…", reveal: "0." },
-      { value: "1", prompt: "…", reveal: "1." },
+      { value: "0", prompt: "Off-diagonal of the rotation block: …", reveal: "0." },
+      { value: "0", prompt: "Off-diagonal of the rotation block: …", reveal: "0." },
+      { value: "1", prompt: "Diagonal of the rotation block: …", reveal: "1." },
       { value: "0", prompt: "Translation has no z-component, so …", reveal: "0." },
       { value: "0", prompt: "Bottom row, the homogeneous fixer. Always …", reveal: "0." },
-      { value: "0", prompt: "…", reveal: "0." },
-      { value: "0", prompt: "…", reveal: "0." },
+      { value: "0", prompt: "Always …", reveal: "0." },
+      { value: "0", prompt: "Always …", reveal: "0." },
       { value: "1", prompt: "And the corner is …", reveal: "1. That bottom row is what makes 4×4 homogeneous transforms compose under matrix multiplication." },
     ],
   },
@@ -111,21 +117,21 @@ export const MATRIX_DEFS = {
     cols: 4,
     cells: [
       { value: "R₁₁", prompt: "Top-left 3×3 is the rotation matrix R. So this entry is …", reveal: "R₁₁ — the (1,1) entry of R." },
-      { value: "R₁₂", prompt: "…", reveal: "R₁₂." },
-      { value: "R₁₃", prompt: "…", reveal: "R₁₃." },
+      { value: "R₁₂", prompt: "Next entry of R …", reveal: "R₁₂." },
+      { value: "R₁₃", prompt: "Next entry of R …", reveal: "R₁₃." },
       { value: "pₓ", prompt: "Right column, top: x-component of the translation …", reveal: "pₓ." },
-      { value: "R₂₁", prompt: "…", reveal: "R₂₁." },
-      { value: "R₂₂", prompt: "…", reveal: "R₂₂." },
-      { value: "R₂₃", prompt: "…", reveal: "R₂₃." },
-      { value: "p_y", prompt: "Right column, middle: …", reveal: "p_y." },
-      { value: "R₃₁", prompt: "…", reveal: "R₃₁." },
-      { value: "R₃₂", prompt: "…", reveal: "R₃₂." },
-      { value: "R₃₃", prompt: "…", reveal: "R₃₃." },
-      { value: "p_z", prompt: "Right column, bottom: …", reveal: "p_z." },
+      { value: "R₂₁", prompt: "Second row of R …", reveal: "R₂₁." },
+      { value: "R₂₂", prompt: "Second row of R …", reveal: "R₂₂." },
+      { value: "R₂₃", prompt: "Second row of R …", reveal: "R₂₃." },
+      { value: "p_y", prompt: "Right column, middle …", reveal: "p_y." },
+      { value: "R₃₁", prompt: "Third row of R …", reveal: "R₃₁." },
+      { value: "R₃₂", prompt: "Third row of R …", reveal: "R₃₂." },
+      { value: "R₃₃", prompt: "Third row of R …", reveal: "R₃₃." },
+      { value: "p_z", prompt: "Right column, bottom …", reveal: "p_z." },
       { value: "0", prompt: "Bottom row, fixed by convention …", reveal: "0." },
-      { value: "0", prompt: "…", reveal: "0." },
-      { value: "0", prompt: "…", reveal: "0." },
-      { value: "1", prompt: "…", reveal: "1. T encodes both orientation and position, and composes by matrix multiplication." },
+      { value: "0", prompt: "Bottom row …", reveal: "0." },
+      { value: "0", prompt: "Bottom row …", reveal: "0." },
+      { value: "1", prompt: "Bottom-right corner …", reveal: "1. T encodes both orientation and position, and composes by matrix multiplication." },
     ],
   },
 
@@ -136,7 +142,7 @@ export const MATRIX_DEFS = {
     intro: "If T sends a vector from frame B to frame A, T⁻¹ sends it back. There is a beautiful shortcut: the rotation block flips to its transpose, and the translation block becomes −Rᵀ·p. No matrix-inversion algorithm needed.",
     cols: 4,
     cells: [
-      { value: "R₁₁", prompt: "Top-left 3×3 is now Rᵀ — the transpose of R. The (1,1) entry of Rᵀ equals R₁₁ (diagonals are unchanged by transpose). What is it?", reveal: "(Rᵀ)₁₁ = R₁₁." },
+      { value: "R₁₁", prompt: "Top-left 3×3 is now Rᵀ. The (1,1) entry of Rᵀ equals R₁₁ (diagonals are unchanged by transpose). What is it?", reveal: "(Rᵀ)₁₁ = R₁₁." },
       { value: "R₂₁", prompt: "Transpose swaps off-diagonal entries. (Rᵀ)₁₂ = …", reveal: "(Rᵀ)₁₂ = R₂₁. Original column 1 becomes new row 1." },
       { value: "R₃₁", prompt: "(Rᵀ)₁₃ = …", reveal: "(Rᵀ)₁₃ = R₃₁." },
       { value: "−(Rᵀp)ₓ", prompt: "Translation column: −Rᵀ·p, x-component. This is …", reveal: "−(Rᵀp)ₓ = −(R₁₁pₓ + R₂₁p_y + R₃₁p_z). The negative dot-product of column 1 of R with p." },
@@ -149,9 +155,9 @@ export const MATRIX_DEFS = {
       { value: "R₃₃", prompt: "(Rᵀ)₃₃ = …", reveal: "R₃₃." },
       { value: "−(Rᵀp)_z", prompt: "Translation column, z …", reveal: "−(R₁₃pₓ + R₂₃p_y + R₃₃p_z)." },
       { value: "0", prompt: "Bottom row …", reveal: "0." },
-      { value: "0", prompt: "…", reveal: "0." },
-      { value: "0", prompt: "…", reveal: "0." },
-      { value: "1", prompt: "…", reveal: "1. That is the whole inverse, no Gaussian elimination required. Try multiplying T·T⁻¹ in the sandbox — you should get I₄." },
+      { value: "0", prompt: "Bottom row …", reveal: "0." },
+      { value: "0", prompt: "Bottom row …", reveal: "0." },
+      { value: "1", prompt: "Bottom-right …", reveal: "1. That is the whole inverse, no Gaussian elimination required. Try multiplying T·T⁻¹ in the sandbox — you should get I₄." },
     ],
   },
 };
@@ -164,6 +170,13 @@ export function mountMatrixStepper(host, def) {
 
   host.innerHTML = "";
 
+  // resolve gated targets (initially hidden by .gated CSS)
+  const revealsSelector = host.dataset.reveals || "";
+  const revealTargets = revealsSelector
+    ? Array.from(document.querySelectorAll(revealsSelector))
+    : [];
+
+  // Prompt zone
   const prompt = document.createElement("div");
   prompt.className = "stepper-prompt";
   prompt.textContent = def.intro;
@@ -197,6 +210,16 @@ export function mountMatrixStepper(host, def) {
   `;
   host.appendChild(progress);
 
+  let completeFired = false;
+  function fireCompleteIfDone() {
+    if (completeFired) return;
+    if (!cells.every(c => c.revealed)) return;
+    completeFired = true;
+    host.dataset.stepperComplete = "true";
+    revealTargets.forEach(t => t.classList.add("is-revealed"));
+    host.dispatchEvent(new CustomEvent("stepper:complete", { bubbles: true }));
+  }
+
   function setActiveAt(idx) {
     cells.forEach(c => c.el.classList.remove("is-active"));
     if (idx >= 0 && idx < cells.length && !cells[idx].revealed) {
@@ -215,14 +238,21 @@ export function mountMatrixStepper(host, def) {
     c.el.classList.add("is-revealed");
     c.revealed = true;
     progress.querySelector("[data-count]").textContent = cells.filter(x => x.revealed).length;
+    host.dispatchEvent(new CustomEvent("stepper:progress", {
+      detail: { revealed: cells.filter(x => x.revealed).length, total: cells.length },
+      bubbles: true,
+    }));
     if (scrollToNext) {
       prompt.textContent = c.def.reveal;
       const next = cells.findIndex(x => !x.revealed);
       if (next === -1) {
-        setTimeout(() => setActiveAt(-1), 1200);
+        setTimeout(() => { setActiveAt(-1); fireCompleteIfDone(); }, 1200);
       } else {
         setTimeout(() => setActiveAt(next), 1200);
       }
+    } else {
+      // bulk reveal — fire complete immediately at the end (caller handles batching)
+      if (cells.every(x => x.revealed)) fireCompleteIfDone();
     }
   }
 
@@ -233,6 +263,7 @@ export function mountMatrixStepper(host, def) {
   progress.querySelector("[data-reveal-all]").addEventListener("click", () => {
     cells.forEach((_, i) => revealCell(i, false));
     setActiveAt(-1);
+    fireCompleteIfDone();
   });
 
   return { reveal: revealCell };

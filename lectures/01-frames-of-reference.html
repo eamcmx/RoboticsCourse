@@ -49,7 +49,7 @@
         <h2>Welcome</h2>
         <div class="prose">
           <div class="voice">
-            <p>Okay, so welcome to your class of robotics, kinematics and dynamics of robot manipulators. It's good to have you here. I hope that you guys have an awesome semester and let's start.</p>
+            <p>First lecture. There is a lot of new vocabulary in the next 90 minutes — frames of reference, projections, rotation matrices — and you don't have to retain everything on first contact. Every concept here will be used again, ten times, before the term is over.</p>
           </div>
           <p>
             This is the first lecture of <em>Kinematics and Dynamics of Robot Manipulators</em>. The whole semester
@@ -73,7 +73,7 @@
         <h2>Degrees of freedom</h2>
         <div class="prose">
           <div class="voice">
-            <p>I remember that we did mention last semester about degrees of freedom. Can you tell me a little bit what you remember about what is a degree of freedom?</p>
+            <p>From the prerequisites: a degree of freedom is one independent direction in which a rigid body can move. A free body in 3D space has six — three to translate, three to rotate. The whole job of kinematics is bookkeeping on which are free and which are constrained by the joints.</p>
           </div>
           <p>
             A free body in 3D space has six degrees of freedom — three for translation (along x, y, z) and three for
@@ -94,7 +94,7 @@
         <h2>Reference frames</h2>
         <div class="prose">
           <div class="voice">
-            <p>We need to take as a reference something that is stationary or that we're going to be using as a reference. So we usually assign a reference frame, right? And that frame has three vectors, x, y, and z.</p>
+            <p>Position is always relative. To say where something is we need a reference — three orthogonal unit vectors x, y, z meeting at an origin. Every coordinate, every transform, every robot pose in this course will live relative to a frame like this one.</p>
           </div>
           <p>
             To talk about where something is, we need something to talk <em>relative to</em>. In robotics that's almost
@@ -135,7 +135,7 @@
         <h2>The identity matrix — frames that live together happily</h2>
         <div class="prose">
           <div class="voice">
-            <p>At this precise moment the two frames are perfectly aligned, so they have the same position and orientation. So we have an identity matrix that represents that the two frames are perfectly aligned.</p>
+            <p>Two frames perfectly overlapping is the trivial case. Every column of the rotation matrix encodes one mobile axis projected onto the fixed axes — and at perfect alignment, those projections are exactly the standard basis. The result is the identity matrix.</p>
           </div>
           <p>
             The simplest possible case: the two frames coincide. Same origin, same orientation, every axis pointing
@@ -154,11 +154,11 @@
             <span class="widget-tag">Click to reveal</span>
           </header>
           <div class="widget-body">
-            <div data-matrix-stepper data-id="identity"></div>
+            <div data-matrix-stepper data-id="identity" data-reveals="#identity-formula"></div>
           </div>
         </figure>
 
-        <div class="math-display" id="identity-formula"></div>
+        <div class="math-display gated" id="identity-formula"></div>
 
         <div class="prose">
           <p>
@@ -173,7 +173,7 @@
         <h2>Rotation around X</h2>
         <div class="prose">
           <div class="voice">
-            <p>So let's pretend that this thing is completely overlapped, and we rotate around the x axis, theta degrees. So that means that we have moved here theta and we have moved here theta. So what would be the matrix that represents this motion?</p>
+            <p>Now the mobile frame is rotated by θ around the fixed x axis. u stays put because it lies along x; v and w both swing through θ in the y–z plane. Project each one onto x, y, z and read the resulting columns — that is the matrix.</p>
           </div>
           <p>
             Now the mobile frame rotates by an angle θ around the fixed x axis. <strong>u</strong> doesn't move — it stays
@@ -203,13 +203,13 @@
             <span class="widget-tag">Stepper</span>
           </header>
           <div class="widget-body">
-            <div data-matrix-stepper data-id="rx"></div>
+            <div data-matrix-stepper data-id="rx" data-reveals="#rx-formula, #rx-callout"></div>
           </div>
         </figure>
 
-        <div class="math-display" id="rx-formula"></div>
+        <div class="math-display gated" id="rx-formula"></div>
 
-        <div class="callout">
+        <div class="callout gated" id="rx-callout">
           <div class="callout-title">Verify against the picture</div>
           <p>
             At θ = 0, every cos becomes 1 and every sin becomes 0 — the matrix collapses to I₃, which is
@@ -225,7 +225,7 @@
         <h2>Try it in the sandbox</h2>
         <div class="prose">
           <div class="voice">
-            <p>MATLAB is very intuitive — pretty much however you think you can do something, you can actually do it. So let's just write it. We'll just use cosd and sind for cosine and sine in degrees, and that's it.</p>
+            <p>A useful habit when you don't know a MATLAB function: type your best guess and read its help. Names like <code>line</code>, <code>plot3</code>, <code>view</code>, <code>cosd</code>, <code>sind</code> all do roughly what the name implies. The browser sandbox above mirrors the same conventions and works in degrees by default.</p>
           </div>
           <p>
             The sandbox below is a real math.js evaluator. <code>rotX</code>, <code>rotY</code>, <code>rotZ</code> are
@@ -263,7 +263,7 @@ rotX(90)"></div>
         <h2>Animating a point</h2>
         <div class="prose">
           <div class="voice">
-            <p>Let's pretend that we are interested in a point that we are defining here in this object. We have this point a u v w which is, let's say, 0.3 in u, 0.4 in v, 0.5 in w. Now what happens to this point when the frame rotates?</p>
+            <p>Pick a point a fixed inside the mobile frame at coordinates (0.3, 0.4, 0.5). As the frame rotates, the point moves with it — but its description in the mobile frame's own coordinates never changes. The whole job of R is to translate that fixed mobile description into the fixed-frame coordinates we can actually plot.</p>
           </div>
           <p>
             Take a point a = (0.3, 0.4, 0.5) defined in the mobile frame. As the mobile frame rotates around x, the

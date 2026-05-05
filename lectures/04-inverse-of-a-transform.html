@@ -39,7 +39,7 @@
         <div class="lecture-eyebrow">Lecture 04 · Module 1</div>
         <h1 class="lecture-title">Inverse of a homogeneous transform</h1>
         <p class="lecture-subtitle">
-          If T sends a vector from frame B to frame A, T⁻¹ sends it back. There's a beautiful shortcut —
+          If T sends a vector from frame B to frame A, T⁻¹ sends it back. There is a beautiful shortcut —
           you almost never need to call a generic matrix-inversion routine.
         </p>
       </header>
@@ -48,7 +48,7 @@
         <h2>Why we need the inverse</h2>
         <div class="prose">
           <div class="voice">
-            <p>Okay so we have T from frame B to frame A. The question is: what if I know where something is in A and I want to know where it is in B? I need to go the other way.</p>
+            <p>Often we know a vector in frame A and need it in frame B — the opposite direction of the transform we have. We need T⁻¹.</p>
           </div>
           <p>
             We've been talking about going from a mobile frame to a fixed frame. But the other direction comes
@@ -76,34 +76,85 @@
           </p>
         </div>
 
-        <div class="math-display" id="inv-formula"></div>
-
-        <div class="prose">
-          <p>
-            The rotation block flips to its transpose; the translation block becomes <strong>−Rᵀ·p</strong>.
-            No determinant, no cofactor expansion, no LU decomposition. Just a transpose and a small multiplication.
-          </p>
-        </div>
-
         <figure class="widget">
           <header class="widget-header">
             <span class="widget-title">Build T⁻¹ entry by entry</span>
             <span class="widget-tag">Stepper · 4×4</span>
           </header>
           <div class="widget-body">
-            <div data-matrix-stepper data-id="homog_inverse"></div>
+            <div data-matrix-stepper data-id="homog_inverse" data-reveals="#inv-formula"></div>
           </div>
         </figure>
+
+        <div class="math-display gated" id="inv-formula"></div>
+
+        <div class="prose">
+          <p>
+            The rotation block flips to its transpose; the translation block becomes <strong>−Rᵀ·p</strong>.
+            No determinant, no cofactor expansion, no LU decomposition. Just a transpose and a small
+            multiplication.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="visual-roundtrip">
+        <h2>Visual round-trip: T then T⁻¹</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>If our derivation is right, applying T and then T⁻¹ should leave any frame exactly where it started. The widget below tests that claim live: a third frame is rendered at the round-trip destination — if our T⁻¹ is correct, it always overlaps the fixed frame, no matter what you do with the sliders.</p>
+          </div>
+          <p>
+            The widget shows three frames in the same scene:
+          </p>
+          <ul>
+            <li>The <strong>fixed frame</strong> (red/green/blue) at the origin.</li>
+            <li>The <strong>mobile frame B</strong> (orange/purple/cyan) at T, driven by the six sliders.</li>
+            <li>A <strong>round-trip frame</strong> (faded blue), rendered at T⁻¹·T applied to the fixed frame. If the
+              math is correct, T⁻¹·T = I and the round-trip frame sits exactly on the fixed frame, regardless of
+              what T is.</li>
+          </ul>
+          <p>
+            Drag the sliders. The mobile B will move all over the place; the round-trip frame should never move.
+            The numeric T and T⁻¹ matrices on the side update live so you can read off both at every pose.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">T, T⁻¹, and the round-trip</span>
+            <span class="widget-tag">3D · proof by overlay</span>
+          </header>
+          <div class="widget-body">
+            <div data-transform-viewer
+                 data-axes="x,y,z"
+                 data-translate-axes="x,y,z"
+                 data-initial-r="20,30,15"
+                 data-initial-t="0.8,0.4,0.3"
+                 data-show-inverse="true"
+                 data-show-roundtrip="true"
+                 data-tracked-point="0.4,0.3,0.5"></div>
+          </div>
+        </figure>
+
+        <div class="callout">
+          <div class="callout-title">Read the tracked point</div>
+          <p>
+            The tracked point lives in frame B at coordinates (0.4, 0.3, 0.5) — those don't change. Below the
+            sliders you'll see the same point's coordinates in the fixed frame (T·a_B), and then T⁻¹ applied to
+            those fixed-frame coordinates. The "T⁻¹·(A-coords)" line should always read (0.4, 0.3, 0.5) up to
+            floating-point precision. That's the round-trip in numeric form.
+          </p>
+        </div>
       </section>
 
       <section class="lecture-section" id="why">
-        <h2>Why it works</h2>
+        <h2>Why it works algebraically</h2>
         <div class="prose">
           <p>
-            There's a clean geometric reading. T sends frame B's basis vectors into frame A. To go back, we need
-            to undo the rotation (transpose) <em>and</em> undo the translation. But the translation has to be expressed
-            <em>in B's coordinates</em> now, because we're going from A back to B. That's why p, originally a vector
-            in A, gets pre-multiplied by Rᵀ before being negated.
+            There's a clean geometric reading of the formula. T sends frame B's basis vectors into frame A. To go
+            back, we need to undo the rotation (transpose) <em>and</em> undo the translation. But the translation
+            has to be expressed <em>in B's coordinates</em> now, because we're going from A back to B. That's why
+            p, originally a vector in A, gets pre-multiplied by Rᵀ before being negated.
           </p>
           <p>
             Mechanically, you can verify it by multiplying T·T⁻¹ block-by-block:
@@ -120,10 +171,10 @@
       </section>
 
       <section class="lecture-section" id="implement">
-        <h2>Implement and verify</h2>
+        <h2>Implement and verify in code</h2>
         <div class="prose">
           <div class="voice">
-            <p>So now we make a function. Let's call it inv_T. It takes a homogeneous transform and gives you back its inverse using this trick.</p>
+            <p>We will package the shortcut as a small function inv_T(T). It pulls out R and p, transposes R, and assembles the new transform — a routine you'll reuse on every robot in this course.</p>
           </div>
           <p>
             Build the function in the sandbox. The math.js syntax for transpose is <code>R'</code>; for matrix
@@ -213,7 +264,7 @@ T * T_inv"></div>
         </a>
         <a href="#" class="next" style="opacity:0.55; pointer-events:none">
           <span class="label">Next →</span>
-          <span class="lec-title">Lecture 05 · Box demo (coming)</span>
+          <span class="lec-title">Lecture 05 · Rigid-body motion (coming)</span>
         </a>
       </nav>
     </main>
@@ -223,8 +274,9 @@ T * T_inv"></div>
       <ol class="lecture-toc">
         <li><a href="#problem">Why we need the inverse</a></li>
         <li><a href="#trick">The trick</a></li>
+        <li><a href="#visual-roundtrip">Visual round-trip</a></li>
         <li><a href="#why">Why it works</a></li>
-        <li><a href="#implement">Implement and verify</a></li>
+        <li><a href="#implement">Implement &amp; verify</a></li>
         <li><a href="#recap">Quick recap</a></li>
         <li><a href="#homework">Homework</a></li>
       </ol>
@@ -256,7 +308,9 @@ T * T_inv"></div>
   <script type="module">
     import { mountMatrixStepper, MATRIX_DEFS } from '../js/widgets/matrix-stepper.js';
     import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    import { mountTransformViewer } from '../js/widgets/transform-viewer.js';
 
+    document.querySelectorAll('[data-transform-viewer]').forEach(mountTransformViewer);
     document.querySelectorAll('[data-matrix-stepper]').forEach(el =>
       mountMatrixStepper(el, MATRIX_DEFS[el.dataset.id]));
     document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
