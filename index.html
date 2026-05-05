@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kinematics & Dynamics of Robot Manipulators · Interactive Course</title>
+  <meta name="description" content="A 21-lecture interactive course on robot kinematics and dynamics. Live 3D, in-browser MATLAB-style sandbox, derivations you can step through.">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="index.html" class="brand">
+        <span class="brand-mark">R</span>
+        Kinematics &amp; Dynamics of Robot Manipulators
+      </a>
+      <div class="topnav-links">
+        <a href="#syllabus">Syllabus</a>
+        <a href="#about">About</a>
+        <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-eyebrow">Interactive course companion</div>
+    <h1>Kinematics &amp; Dynamics of Robot Manipulators</h1>
+    <p class="lede">
+      Twenty-one lectures, one continuous worked example, every concept built live on the page.
+      Drag the coordinate frames. Step through the derivations. Run real matrix algebra in the
+      browser sandbox. Same arc as the lecture course — geometry first, code second, animation third.
+    </p>
+    <div class="hero-meta">
+      <span><strong>Tools:</strong> Three.js · math.js · MATLAB-style helpers</span>
+      <span><strong>Cohort:</strong> TSI · Spring 2026</span>
+      <span><strong>Source:</strong> 2022 lecture transcripts</span>
+    </div>
+  </header>
+
+  <main class="syllabus" id="syllabus">
+
+    <h2 class="syllabus-section-title" style="margin-top:0">Module 1 · Frames, rotations, transforms</h2>
+    <div class="lecture-grid">
+
+      <a href="lectures/01-frames-of-reference.html" class="lecture-card">
+        <div class="lecture-card-num">Lecture 01</div>
+        <h3 class="lecture-card-title">Frames of reference, the identity matrix, rotation around X</h3>
+        <p class="lecture-card-desc">Two coordinate frames, six degrees of freedom, and the first matrix you'll meet — derived live by projecting unit vectors onto axes.</p>
+        <div class="lecture-card-meta">
+          <span class="lecture-card-tag is-ready">● Ready</span>
+          <span>3D widget · Stepper · Sandbox · Animator</span>
+        </div>
+      </a>
+
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 02</div>
+        <h3 class="lecture-card-title">Rotation around Y and Z, composite rotations</h3>
+        <p class="lecture-card-desc">Same projection logic, applied to the other two axes. Right-to-left composition of Rx · Ry · Rz, and why order matters.</p>
+        <div class="lecture-card-meta">
+          <span class="lecture-card-tag is-soon">○ Coming</span>
+          <span>3D widget · Stepper · Sandbox</span>
+        </div>
+      </div>
+
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 03</div>
+        <h3 class="lecture-card-title">Translations and homogeneous transforms</h3>
+        <p class="lecture-card-desc">From 3×3 rotations to 4×4 transforms. The point of the extra row, and why it makes everything compose.</p>
+        <div class="lecture-card-meta">
+          <span class="lecture-card-tag is-soon">○ Coming</span>
+          <span>3D widget · Sandbox</span>
+        </div>
+      </div>
+
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 04</div>
+        <h3 class="lecture-card-title">Inverse of a homogeneous transform</h3>
+        <p class="lecture-card-desc">Why the inverse is just the transpose of the rotation block plus −Rᵀ·p. Build the function and verify it.</p>
+        <div class="lecture-card-meta">
+          <span class="lecture-card-tag is-soon">○ Coming</span>
+          <span>Stepper · Sandbox</span>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="syllabus-section-title">Module 2 · Forward kinematics</h2>
+    <div class="lecture-grid">
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 05</div>
+        <h3 class="lecture-card-title">Box demo: karobka — moving a rigid body</h3>
+        <p class="lecture-card-desc">Translate, rotate, animate the running box example. The first MATLAB function you'll reuse for the rest of the term.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 06</div>
+        <h3 class="lecture-card-title">PPP robot — three prismatic joints</h3>
+        <p class="lecture-card-desc">First robot. Pure translations, easiest forward-kinematics chain. Compose T₁⁰ · T₂¹ · T₃².</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 07</div>
+        <h3 class="lecture-card-title">RPP robot and the GUI with sliders</h3>
+        <p class="lecture-card-desc">Add a revolute joint. Build a graphical interface with three sliders that drives the model live.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 08</div>
+        <h3 class="lecture-card-title">SCARA: Adept Cobra S800</h3>
+        <p class="lecture-card-desc">Real industrial robot. Match its kinematic model against RoboDK's reading and reconcile.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 09</div>
+        <h3 class="lecture-card-title">Universal Robots UR5</h3>
+        <p class="lecture-card-desc">Six revolute joints. The robot most lab benches actually have. Limits and edge cases.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 10</div>
+        <h3 class="lecture-card-title">The Denavit–Hartenberg convention</h3>
+        <p class="lecture-card-desc">A standard for assigning frames so any two engineers describing the same robot get the same matrices.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+    </div>
+
+    <h2 class="syllabus-section-title">Module 3 · Inverse kinematics</h2>
+    <div class="lecture-grid">
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 11</div>
+        <h3 class="lecture-card-title">The Jacobian — joint space to task space</h3>
+        <p class="lecture-card-desc">Partial derivatives, by hand. The matrix that links what the joints are doing to what the end-effector is doing.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 12</div>
+        <h3 class="lecture-card-title">Newton–Raphson for inverse kinematics</h3>
+        <p class="lecture-card-desc">Numerical IK. Why the wrap-to-360 trap exists and how to get around it. Use the previous solution as the next initial guess.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 13</div>
+        <h3 class="lecture-card-title">Joint limits and singularities</h3>
+        <p class="lecture-card-desc">Where the math doesn't match the physical robot. Limits per joint, singular configurations, when the Jacobian loses rank.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+    </div>
+
+    <h2 class="syllabus-section-title">Module 4 · Trajectory planning &amp; integration</h2>
+    <div class="lecture-grid">
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 14</div>
+        <h3 class="lecture-card-title">move J — free joint motion</h3>
+        <p class="lecture-card-desc">Linear interpolation in joint space. What the controller does when you don't ask for a specific path.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 15</div>
+        <h3 class="lecture-card-title">move L — linear motion in task space</h3>
+        <p class="lecture-card-desc">Discretise the path into via-points; solve IK at each. Build move L from scratch so it stops being magic.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 16</div>
+        <h3 class="lecture-card-title">move C — circular motion</h3>
+        <p class="lecture-card-desc">Three-point arcs, splines. The third primitive every controller ships with.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 17</div>
+        <h3 class="lecture-card-title">Arduino + joysticks: a homemade teach-pendant</h3>
+        <p class="lecture-card-desc">Wire up two joysticks and a digital pin. Map analog reads to joint commands. The real cost of one degree of freedom.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 18</div>
+        <h3 class="lecture-card-title">RoboDK API — MATLAB ↔ simulator</h3>
+        <p class="lecture-card-desc">Drive the simulated robot from your code. Compare poses, debug discrepancies between model and reality.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 19</div>
+        <h3 class="lecture-card-title">Trajectories on a moving plate</h3>
+        <p class="lecture-card-desc">Two robots in the same workspace. The trajectory is defined relative to a plate the other robot is holding.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 20</div>
+        <h3 class="lecture-card-title">Master–slave: two robots, one task</h3>
+        <p class="lecture-card-desc">The final assignment. Robot A holds, robot B traces. Move A and watch B compensate in real time.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+      <div class="lecture-card is-disabled">
+        <div class="lecture-card-num">Lecture 21</div>
+        <h3 class="lecture-card-title">Wrap-up &amp; portfolio review</h3>
+        <p class="lecture-card-desc">What we covered, where to go next. How the same primitives scale to mobile manipulators and humanoids.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-soon">○ Coming</span></div>
+      </div>
+    </div>
+
+    <section id="about" style="margin-top: var(--space-10);">
+      <h2 class="syllabus-section-title">About this site</h2>
+      <div class="prose">
+        <p>
+          This is the interactive companion to the live course. Every concept that gets a whiteboard
+          treatment in the lecture also lives here as something you can manipulate — drag the frame,
+          step through the derivation, run the matrix in a browser sandbox. The arc and the worked
+          examples follow the lectures one-for-one, so the site can be used either as a refresher
+          before class or as a self-study path.
+        </p>
+        <p>
+          <strong>Same convention all term:</strong> x is red, y is green, z is blue. The mobile-frame
+          axes (u, v, w) are drawn in orange / purple / cyan so they stay visible when they overlap.
+          The default 3D view is azimuth 130°, elevation 30°, like in MATLAB.
+        </p>
+        <p>
+          <strong>Three deliverables, every homework:</strong> a derivation by hand, a MATLAB program,
+          and a short video where you explain both. The video isn't optional — it's how I know the
+          work is yours, and it's the assessment.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    Built for TSI students · Source: 2022 lecture corpus · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a>
+  </footer>
+</body>
+</html>

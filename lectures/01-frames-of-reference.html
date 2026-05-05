@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 01 · Frames of reference, the identity matrix, rotation around X</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand">
+        <span class="brand-mark">R</span>
+        Kinematics &amp; Dynamics of Robot Manipulators
+      </a>
+      <div class="topnav-links">
+        <a href="../index.html#syllabus">Syllabus</a>
+        <a href="../index.html#about">About</a>
+      </div>
+    </div>
+  </nav>
+
+  <article class="lecture">
+    <main class="lecture-main">
+
+      <header class="lecture-header">
+        <div class="lecture-eyebrow">Lecture 01 · Module 1</div>
+        <h1 class="lecture-title">Frames of reference, the identity matrix, rotation around X</h1>
+        <p class="lecture-subtitle">
+          Two coordinate frames, six degrees of freedom, and the first matrix you'll meet —
+          derived live by projecting unit vectors onto axes.
+        </p>
+      </header>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="welcome">
+        <h2>Welcome</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Okay, so welcome to your class of robotics, kinematics and dynamics of robot manipulators. It's good to have you here. I hope that you guys have an awesome semester and let's start.</p>
+          </div>
+          <p>
+            This is the first lecture of <em>Kinematics and Dynamics of Robot Manipulators</em>. The whole semester
+            is going to be one connected worked example — we'll start with a single point in space and build it
+            all the way up to two industrial robots running a master–slave choreography on a moving plate. Today is
+            the first piece: <strong>how do we describe where something is in 3D space, mathematically, in a way a
+            computer can use?</strong>
+          </p>
+          <p>
+            We're going to be using MATLAB and RoboDK in the live course; on this page we'll use a browser-based
+            sandbox that runs the same matrix algebra so you can experiment without leaving the lecture. The
+            convention is the same in both: <strong style="color:var(--axis-x)">x is red</strong>,
+            <strong style="color:var(--axis-y)">y is green</strong>,
+            <strong style="color:var(--axis-z)">z is blue</strong>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="dof">
+        <h2>Degrees of freedom</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>I remember that we did mention last semester about degrees of freedom. Can you tell me a little bit what you remember about what is a degree of freedom?</p>
+          </div>
+          <p>
+            A free body in 3D space has six degrees of freedom — three for translation (along x, y, z) and three for
+            rotation (around x, y, z). When we attach a robot to that body, the robot's joints constrain those degrees
+            of freedom. Each joint either contributes a degree of freedom (a rotational or prismatic motion the robot
+            can choose) or removes one. The whole job of kinematics is to keep track of which are free, which are
+            constrained, and how they compose.
+          </p>
+          <p>
+            The fact that translations and rotations are independent is what lets us separate the matrix that describes
+            position from the matrix that describes orientation, and that's the move we're going to make next.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="frames">
+        <h2>Reference frames</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>We need to take as a reference something that is stationary or that we're going to be using as a reference. So we usually assign a reference frame, right? And that frame has three vectors, x, y, and z.</p>
+          </div>
+          <p>
+            To talk about where something is, we need something to talk <em>relative to</em>. In robotics that's almost
+            always a Cartesian frame: three orthogonal unit vectors x, y, z meeting at an origin. In the lecture I'd
+            draw it on the whiteboard; here you can drag the camera around it.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Two coordinate frames</span>
+            <span class="widget-tag">Drag to rotate camera</span>
+          </header>
+          <div class="widget-body">
+            <div data-frame-viewer
+                 data-axes="x"
+                 data-show-matrix="true"
+                 data-initial="0"></div>
+            <p class="sandbox-hint" style="margin-top: var(--space-3)">
+              The fixed frame is x (red), y (green), z (blue). The mobile frame is u (orange), v (purple), w (cyan).
+              At θ = 0 they overlap. Drag the slider to rotate the mobile frame around the fixed x axis, and watch
+              the rotation matrix update.
+            </p>
+          </div>
+        </figure>
+
+        <div class="prose">
+          <p>
+            When we have two frames — say, one fixed at the base of the robot (call it frame 0) and one attached
+            to the tool (call it frame 1) — we need a way to describe how frame 1 sits relative to frame 0. That
+            description is going to be a matrix. The matrix lives between the two frames.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="identity">
+        <h2>The identity matrix — frames that live together happily</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>At this precise moment the two frames are perfectly aligned, so they have the same position and orientation. So we have an identity matrix that represents that the two frames are perfectly aligned.</p>
+          </div>
+          <p>
+            The simplest possible case: the two frames coincide. Same origin, same orientation, every axis pointing
+            the same way. Their relationship is "nothing has changed". Let's express that mathematically.
+          </p>
+          <p>
+            We use unit vectors. If <strong>u</strong> is the x-axis of the mobile frame, how much of u lies along x of the
+            fixed frame? All of it — the projection is 1. How much of u lies along y? Zero. Along z? Zero. The columns
+            of the rotation matrix are exactly the components of u, v, w expressed in the fixed frame's x, y, z.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Build the identity matrix entry by entry</span>
+            <span class="widget-tag">Click to reveal</span>
+          </header>
+          <div class="widget-body">
+            <div data-matrix-stepper data-id="identity"></div>
+          </div>
+        </figure>
+
+        <div class="math-display" id="identity-formula"></div>
+
+        <div class="prose">
+          <p>
+            We get the <strong>identity matrix</strong>, written I₃ — the 3×3 matrix with ones on the diagonal and zeros
+            everywhere else. Whenever you see I₃ in a derivation, read it as "no rotation has happened yet".
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="rotation-x">
+        <h2>Rotation around X</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>So let's pretend that this thing is completely overlapped, and we rotate around the x axis, theta degrees. So that means that we have moved here theta and we have moved here theta. So what would be the matrix that represents this motion?</p>
+          </div>
+          <p>
+            Now the mobile frame rotates by an angle θ around the fixed x axis. <strong>u</strong> doesn't move — it stays
+            along x. But <strong>v</strong> tilts up out of the y direction, and <strong>w</strong> tilts back along y. We
+            derive the matrix the same way: project each mobile axis onto each fixed axis.
+          </p>
+          <p>
+            Drag the slider in the widget below to see what happens, then build the matrix in the stepper.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Rotate around x</span>
+            <span class="widget-tag">Geometry</span>
+          </header>
+          <div class="widget-body">
+            <div data-frame-viewer
+                 data-axes="x"
+                 data-show-matrix="true"></div>
+          </div>
+        </figure>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Derive Rx(θ) entry by entry</span>
+            <span class="widget-tag">Stepper</span>
+          </header>
+          <div class="widget-body">
+            <div data-matrix-stepper data-id="rx"></div>
+          </div>
+        </figure>
+
+        <div class="math-display" id="rx-formula"></div>
+
+        <div class="callout">
+          <div class="callout-title">Verify against the picture</div>
+          <p>
+            At θ = 0, every cos becomes 1 and every sin becomes 0 — the matrix collapses to I₃, which is
+            exactly what should happen when the two frames coincide. At θ = 90°, cos = 0 and sin = 1, so v
+            ends up fully along z and w ends up fully along −y. Drag the widget slider to 90° and check that
+            the picture matches.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="try-it">
+        <h2>Try it in the sandbox</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>MATLAB is very intuitive — pretty much however you think you can do something, you can actually do it. So let's just write it. We'll just use cosd and sind for cosine and sine in degrees, and that's it.</p>
+          </div>
+          <p>
+            The sandbox below is a real math.js evaluator. <code>rotX</code>, <code>rotY</code>, <code>rotZ</code> are
+            already defined for you, in degrees, exactly the way you'd write them in MATLAB. Run the cell. Then
+            change the angle and run it again.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Browser sandbox · math.js</span>
+            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="6"
+                 data-initial="% rotX(theta) returns the rotation matrix around x, theta in degrees.
+% Try a few values, predict before you run.
+rotX(0)
+rotX(30)
+rotX(90)"></div>
+          </div>
+        </figure>
+
+        <div class="prose">
+          <p>
+            Predict before you run: at <code>rotX(90)</code>, where do you expect v and w to end up? Use the
+            sandbox to check yourself, then verify visually with the slider in the widget above.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="point-rotation">
+        <h2>Animating a point</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Let's pretend that we are interested in a point that we are defining here in this object. We have this point a u v w which is, let's say, 0.3 in u, 0.4 in v, 0.5 in w. Now what happens to this point when the frame rotates?</p>
+          </div>
+          <p>
+            Take a point a = (0.3, 0.4, 0.5) defined in the mobile frame. As the mobile frame rotates around x, the
+            point's coordinates relative to the fixed frame change — even though, from the mobile frame's point of
+            view, the point hasn't moved at all. Drag the slider to watch the point sweep out an arc.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Watch the point move</span>
+            <span class="widget-tag">a_xyz = R · a_uvw</span>
+          </header>
+          <div class="widget-body">
+            <div data-rotation-animator
+                 data-axis="x"
+                 data-point="0.3,0.4,0.5"></div>
+          </div>
+        </figure>
+
+        <div class="math-display" id="point-formula"></div>
+
+        <div class="prose">
+          <p>
+            That's the whole idea of representing motion as matrix multiplication. We'll do this thousands of times
+            this semester — with bigger matrices, with more frames, with translations folded in — but the idea is
+            the same. The matrix lives between two frames; multiplying takes you across.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="recap">
+        <h2>Quick recap</h2>
+        <div class="prose">
+          <ul>
+            <li>A free body has six degrees of freedom — three translations, three rotations.</li>
+            <li>To describe orientation, attach a reference frame to it. We use Cartesian frames with x-red, y-green, z-blue.</li>
+            <li>The relationship between two frames is captured by a 3×3 rotation matrix.</li>
+            <li>The columns of the matrix are the mobile frame's axes (u, v, w) expressed in the fixed frame's basis (x, y, z).</li>
+            <li>When the frames coincide, the matrix is the identity I₃.</li>
+            <li>For a rotation by θ around x, u stays put; v and w rotate in the y–z plane. Hence Rx(θ).</li>
+            <li>To find a point's coordinates in the fixed frame, multiply: a_xyz = R · a_uvw.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="homework">
+        <div class="homework">
+          <div class="homework-eyebrow">Homework 01 · due before next session</div>
+          <h3>Rotations around y and z, by hand and in code</h3>
+          <ol>
+            <li>Write <code>rotY(θ)</code> and <code>rotZ(θ)</code> by the same projection logic we used for <code>rotX</code>.</li>
+            <li>Verify each one by visual inspection: at θ = 0 you should get the identity; at θ = 90° you should get a known signed permutation. Sketch this on paper.</li>
+            <li>Animate the point a = (0.3, 0.4, 0.5) as it rotates around y, then around z. Compare the trails — do they make sense given which axis is fixed?</li>
+            <li>Write a short MATLAB or browser-sandbox script that prints rotY(0), rotY(45), rotY(90), rotY(180). Confirm rotY(0) is I₃ and rotY(180) flips x and z.</li>
+          </ol>
+          <div class="homework-deliverables">
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 1</div>
+              <div class="deliverable-name">By-hand sketch</div>
+              <div class="deliverable-desc">A photo of your notebook page showing the projections and the resulting matrices for Ry and Rz.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 2</div>
+              <div class="deliverable-name">Code</div>
+              <div class="deliverable-desc">One <code>.m</code> file for each rotation, plus a short script that animates the point. Upload to Moodle.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 3</div>
+              <div class="deliverable-name">60-second video</div>
+              <div class="deliverable-desc">Explain in your own voice what each matrix is doing geometrically, and what the trail of the rotated point looks like.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- footer nav -->
+      <nav class="lecture-footer-nav">
+        <a href="../index.html">
+          <span class="label">← Back</span>
+          <span class="lec-title">Course syllabus</span>
+        </a>
+        <a href="#" class="next" style="opacity:0.55; pointer-events:none">
+          <span class="label">Next →</span>
+          <span class="lec-title">Lecture 02 · coming</span>
+        </a>
+      </nav>
+    </main>
+
+    <!-- side ToC -->
+    <aside class="lecture-side">
+      <div class="lecture-side-title">In this lecture</div>
+      <ol class="lecture-toc">
+        <li><a href="#welcome">Welcome</a></li>
+        <li><a href="#dof">Degrees of freedom</a></li>
+        <li><a href="#frames">Reference frames</a></li>
+        <li><a href="#identity">The identity matrix</a></li>
+        <li><a href="#rotation-x">Rotation around X</a></li>
+        <li><a href="#try-it">Try it in the sandbox</a></li>
+        <li><a href="#point-rotation">Animating a point</a></li>
+        <li><a href="#recap">Quick recap</a></li>
+        <li><a href="#homework">Homework</a></li>
+      </ol>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a>
+  </footer>
+
+  <!-- KaTeX for math rendering -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"
+    onload="renderMathInElement(document.body, { delimiters: [{left:'$$', right:'$$', display:true}, {left:'$', right:'$', display:false}] });"></script>
+
+  <!-- inline math via direct KaTeX render of pre-built strings -->
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [
+          ['identity-formula', 'I_3 = \\begin{pmatrix} 1 & 0 & 0 \\\\ 0 & 1 & 0 \\\\ 0 & 0 & 1 \\end{pmatrix}'],
+          ['rx-formula', 'R_x(\\theta) = \\begin{pmatrix} 1 & 0 & 0 \\\\ 0 & \\cos\\theta & -\\sin\\theta \\\\ 0 & \\sin\\theta & \\cos\\theta \\end{pmatrix}'],
+          ['point-formula', 'a_{xyz} = R_x(\\theta) \\cdot a_{uvw}'],
+        ];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+
+  <!-- mount widgets -->
+  <script type="module">
+    import { mountFrameViewer } from '../js/widgets/frame-viewer.js';
+    import { mountMatrixStepper, MATRIX_DEFS } from '../js/widgets/matrix-stepper.js';
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    import { mountRotationAnimator } from '../js/widgets/rotation-animator.js';
+
+    document.querySelectorAll('[data-frame-viewer]').forEach(mountFrameViewer);
+    document.querySelectorAll('[data-matrix-stepper]').forEach(el =>
+      mountMatrixStepper(el, MATRIX_DEFS[el.dataset.id]));
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+    document.querySelectorAll('[data-rotation-animator]').forEach(mountRotationAnimator);
+
+    // ToC active-section tracking
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>
