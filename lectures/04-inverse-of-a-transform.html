@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 04 · Inverse of a homogeneous transform</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand">
+        <span class="brand-mark">R</span>
+        Kinematics &amp; Dynamics of Robot Manipulators
+      </a>
+      <div class="topnav-links">
+        <a href="../index.html#syllabus">Syllabus</a>
+        <a href="../index.html#about">About</a>
+      </div>
+    </div>
+  </nav>
+
+  <article class="lecture">
+    <main class="lecture-main">
+
+      <header class="lecture-header">
+        <div class="lecture-eyebrow">Lecture 04 · Module 1</div>
+        <h1 class="lecture-title">Inverse of a homogeneous transform</h1>
+        <p class="lecture-subtitle">
+          If T sends a vector from frame B to frame A, T⁻¹ sends it back. There's a beautiful shortcut —
+          you almost never need to call a generic matrix-inversion routine.
+        </p>
+      </header>
+
+      <section class="lecture-section" id="problem">
+        <h2>Why we need the inverse</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Okay so we have T from frame B to frame A. The question is: what if I know where something is in A and I want to know where it is in B? I need to go the other way.</p>
+          </div>
+          <p>
+            We've been talking about going from a mobile frame to a fixed frame. But the other direction comes
+            up constantly. The robot's controller knows the end-effector pose in the base frame and needs to know
+            it in the tool frame to interpret a sensor reading. A camera mounted on the wrist sees the world in
+            its own frame and we need it in the workspace frame. Both are inverse-transform problems.
+          </p>
+          <p>
+            For a 4×4 matrix you could in principle call a Gaussian-elimination routine. We never do. The structure
+            of T gives us a much simpler answer.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="trick">
+        <h2>The trick</h2>
+        <div class="prose">
+          <p>
+            A rotation matrix R has a special property: <strong>R⁻¹ = Rᵀ</strong>. The inverse is just the
+            transpose. That's because R is orthogonal — its columns are orthonormal unit vectors, so RᵀR = I.
+            Inverting a 3×3 by transposing it is essentially free.
+          </p>
+          <p>
+            For a homogeneous transform T = [R, p; 0, 1], it turns out the inverse is
+          </p>
+        </div>
+
+        <div class="math-display" id="inv-formula"></div>
+
+        <div class="prose">
+          <p>
+            The rotation block flips to its transpose; the translation block becomes <strong>−Rᵀ·p</strong>.
+            No determinant, no cofactor expansion, no LU decomposition. Just a transpose and a small multiplication.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Build T⁻¹ entry by entry</span>
+            <span class="widget-tag">Stepper · 4×4</span>
+          </header>
+          <div class="widget-body">
+            <div data-matrix-stepper data-id="homog_inverse"></div>
+          </div>
+        </figure>
+      </section>
+
+      <section class="lecture-section" id="why">
+        <h2>Why it works</h2>
+        <div class="prose">
+          <p>
+            There's a clean geometric reading. T sends frame B's basis vectors into frame A. To go back, we need
+            to undo the rotation (transpose) <em>and</em> undo the translation. But the translation has to be expressed
+            <em>in B's coordinates</em> now, because we're going from A back to B. That's why p, originally a vector
+            in A, gets pre-multiplied by Rᵀ before being negated.
+          </p>
+          <p>
+            Mechanically, you can verify it by multiplying T·T⁻¹ block-by-block:
+          </p>
+        </div>
+
+        <div class="math-display" id="proof-formula"></div>
+
+        <div class="prose">
+          <p>
+            R·Rᵀ = I, and the translation telescopes to zero. The product is the identity, as required.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="implement">
+        <h2>Implement and verify</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>So now we make a function. Let's call it inv_T. It takes a homogeneous transform and gives you back its inverse using this trick.</p>
+          </div>
+          <p>
+            Build the function in the sandbox. The math.js syntax for transpose is <code>R'</code>; for matrix
+            multiplication, <code>*</code>. Pull the rotation block with <code>T[1:3, 1:3]</code> (math.js uses
+            1-based indexing) and the translation column with <code>T[1:3, 4]</code>.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Sandbox · build inv_T and verify</span>
+            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="14"
+                 data-initial="% Build a sample T: rotate 30° around z, then translate (1, 2, 3).
+T = homog(rotZ(30), [1; 2; 3])
+
+% The trick: transpose the rotation, negate-and-rotate the translation.
+R = T[1:3, 1:3]
+p = T[1:3, 4]
+T_inv = homog(R', -R' * p)
+
+% Verify: T * T_inv should be the 4×4 identity.
+T * T_inv"></div>
+          </div>
+        </figure>
+
+        <div class="callout">
+          <div class="callout-title">Floating-point reality check</div>
+          <p>
+            The product won't be <em>exactly</em> the identity — you'll see entries like 1.0000 and 0.0000 with
+            tiny non-zero residues at the 10⁻¹⁵ scale. That's normal floating-point error from sin/cos rounding,
+            not a bug. The sandbox already cleans values below 10⁻¹⁰; if you ever doubt a result, multiply by a
+            cleanup function that zeros anything smaller than 1e-10.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="recap">
+        <h2>Quick recap</h2>
+        <div class="prose">
+          <ul>
+            <li>For a rotation matrix R, R⁻¹ = Rᵀ. Orthogonality gives you the inverse for free.</li>
+            <li>For a homogeneous transform T = [R, p; 0, 1], the inverse is T⁻¹ = [Rᵀ, −Rᵀp; 0, 1].</li>
+            <li>Verify: T · T⁻¹ should give I₄ within floating-point precision.</li>
+            <li>Use this whenever you need to go "the other way" between two frames — never call a general matrix-inversion routine on a homogeneous transform.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="homework">
+        <div class="homework">
+          <div class="homework-eyebrow">Homework 04 · due before next session</div>
+          <h3>Write your own inv_T, prove it works</h3>
+          <ol>
+            <li>By hand: write the inverse of T = [Rz(45°), (1, 2, 3); 0, 1] using the shortcut. Show the symbolic Rᵀ and the −Rᵀp computation step by step.</li>
+            <li>Implement <code>inv_T</code> as a MATLAB function (or a math.js function in the sandbox if you prefer). It should take a 4×4 and return a 4×4.</li>
+            <li>Test on three different transforms — pure rotation, pure translation, mixed. For each, verify <code>norm(T · inv_T(T) − I) &lt; 1e-10</code>.</li>
+            <li>Compare your <code>inv_T</code> against MATLAB's generic <code>inv()</code> on a homogeneous transform — they should agree to floating-point precision. Time both for a million calls. Report the speed-up.</li>
+          </ol>
+          <div class="homework-deliverables">
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 1</div>
+              <div class="deliverable-name">By-hand sketch</div>
+              <div class="deliverable-desc">A photo of the symbolic derivation of T⁻¹ for the given example.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 2</div>
+              <div class="deliverable-name">Code</div>
+              <div class="deliverable-desc">The <code>inv_T</code> function plus the verification and timing script.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 3</div>
+              <div class="deliverable-name">60-second video</div>
+              <div class="deliverable-desc">Walk through why R⁻¹ = Rᵀ and why −Rᵀp is the right translation block.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <nav class="lecture-footer-nav">
+        <a href="03-translations-homogeneous-transforms.html">
+          <span class="label">← Previous</span>
+          <span class="lec-title">Lecture 03 · Translations &amp; homogeneous transforms</span>
+        </a>
+        <a href="#" class="next" style="opacity:0.55; pointer-events:none">
+          <span class="label">Next →</span>
+          <span class="lec-title">Lecture 05 · Box demo (coming)</span>
+        </a>
+      </nav>
+    </main>
+
+    <aside class="lecture-side">
+      <div class="lecture-side-title">In this lecture</div>
+      <ol class="lecture-toc">
+        <li><a href="#problem">Why we need the inverse</a></li>
+        <li><a href="#trick">The trick</a></li>
+        <li><a href="#why">Why it works</a></li>
+        <li><a href="#implement">Implement and verify</a></li>
+        <li><a href="#recap">Quick recap</a></li>
+        <li><a href="#homework">Homework</a></li>
+      </ol>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a>
+  </footer>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [
+          ['inv-formula', 'T = \\begin{pmatrix} R & p \\\\ \\mathbf{0}^{\\top} & 1 \\end{pmatrix} \\quad \\Longrightarrow \\quad T^{-1} = \\begin{pmatrix} R^{\\top} & -R^{\\top} p \\\\ \\mathbf{0}^{\\top} & 1 \\end{pmatrix}'],
+          ['proof-formula', 'T \\cdot T^{-1} = \\begin{pmatrix} R & p \\\\ \\mathbf{0} & 1 \\end{pmatrix} \\begin{pmatrix} R^{\\top} & -R^{\\top}p \\\\ \\mathbf{0} & 1 \\end{pmatrix} = \\begin{pmatrix} R R^{\\top} & -R R^{\\top}p + p \\\\ \\mathbf{0} & 1 \\end{pmatrix} = \\begin{pmatrix} I & 0 \\\\ \\mathbf{0} & 1 \\end{pmatrix} = I_4'],
+        ];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+
+  <script type="module">
+    import { mountMatrixStepper, MATRIX_DEFS } from '../js/widgets/matrix-stepper.js';
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+
+    document.querySelectorAll('[data-matrix-stepper]').forEach(el =>
+      mountMatrixStepper(el, MATRIX_DEFS[el.dataset.id]));
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

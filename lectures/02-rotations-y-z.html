@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 02 · Rotation around Y and Z, composite rotations</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand">
+        <span class="brand-mark">R</span>
+        Kinematics &amp; Dynamics of Robot Manipulators
+      </a>
+      <div class="topnav-links">
+        <a href="../index.html#syllabus">Syllabus</a>
+        <a href="../index.html#about">About</a>
+      </div>
+    </div>
+  </nav>
+
+  <article class="lecture">
+    <main class="lecture-main">
+
+      <header class="lecture-header">
+        <div class="lecture-eyebrow">Lecture 02 · Module 1</div>
+        <h1 class="lecture-title">Rotation around Y and Z, composite rotations</h1>
+        <p class="lecture-subtitle">
+          The same projection logic, applied to the other two axes — and what happens when we stack them.
+          Composition is right-to-left, and order matters.
+        </p>
+      </header>
+
+      <section class="lecture-section" id="recap">
+        <h2>Quick recap of last time</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Okay, so let's continue with our class. Just for a quick recap, let's try to remember what we have seen on the last lessons.</p>
+          </div>
+          <p>
+            Last time we built the rotation matrix Rx(θ) by projecting the mobile-frame axes (u, v, w) onto the fixed
+            axes (x, y, z). The columns of the matrix are exactly those projections — that is the whole trick.
+            When θ = 0 we got the identity I₃; for any other θ we got the familiar
+          </p>
+          <div class="math-display" id="rx-recap"></div>
+          <p>
+            Today we're doing two things. First, exactly the same trick for rotations around y and around z — those
+            should be quick. Then, the more interesting question: what happens when we apply more than one rotation?
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="ry">
+        <h2>Rotation around Y</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>The same logic. Believe me, there are no surprises. v stays put because it's along y; u and w move.</p>
+          </div>
+          <p>
+            Now the rotation is around the fixed y-axis. <strong>v</strong> doesn't move — it's along y. <strong>u</strong>
+            (originally along x) tilts toward z; <strong>w</strong> (originally along z) tilts back toward −x.
+            Drag the slider to see it, then build the matrix.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Rotate around y</span>
+            <span class="widget-tag">Geometry</span>
+          </header>
+          <div class="widget-body">
+            <div data-frame-viewer data-axes="y" data-show-matrix="true"></div>
+          </div>
+        </figure>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Derive Ry(θ)</span>
+            <span class="widget-tag">Stepper</span>
+          </header>
+          <div class="widget-body">
+            <div data-matrix-stepper data-id="ry"></div>
+          </div>
+        </figure>
+
+        <div class="math-display" id="ry-formula"></div>
+
+        <div class="callout">
+          <div class="callout-title">Notice the sign pattern</div>
+          <p>
+            The minus sign sits on a different entry than in Rx. For Ry the −sin θ is at row 1, column 3.
+            That isn't an arbitrary convention — it follows from the right-hand rule on the projection of
+            <em>w</em> onto <em>x</em>. When we get to inverse kinematics later in the term, that sign will matter.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="rz">
+        <h2>Rotation around Z</h2>
+        <div class="prose">
+          <p>
+            And around z. <strong>w</strong> stays put — it's along z. <strong>u</strong> and <strong>v</strong>
+            rotate together in the x-y plane. This is the rotation you've intuitively done a thousand times when
+            you turn a piece of paper flat on a desk.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Rotate around z</span>
+            <span class="widget-tag">Geometry</span>
+          </header>
+          <div class="widget-body">
+            <div data-frame-viewer data-axes="z" data-show-matrix="true"></div>
+          </div>
+        </figure>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Derive Rz(θ)</span>
+            <span class="widget-tag">Stepper</span>
+          </header>
+          <div class="widget-body">
+            <div data-matrix-stepper data-id="rz"></div>
+          </div>
+        </figure>
+
+        <div class="math-display" id="rz-formula"></div>
+      </section>
+
+      <section class="lecture-section" id="composite">
+        <h2>Composite rotations</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Okay so what happens if we want to do more than one rotation? Let's say first we rotate around x, then around y, then around z. How do we represent that?</p>
+          </div>
+          <p>
+            In robotics we usually multiply rotations <strong>right-to-left</strong>. The leftmost matrix is the
+            <em>last</em> rotation that gets applied; the rightmost is the <em>first</em>. Why? Because each
+            successive rotation is expressed in the frame produced by the previous ones, and you read the
+            stack from the inside out. The composed rotation matrix is
+          </p>
+          <div class="math-display" id="composite-formula"></div>
+          <p>
+            The widget below has all three sliders. As you change them, the mobile frame is updated by composing
+            Rx(θ₁) · Ry(θ₂) · Rz(θ₃) right-to-left. The matrix on the side is the composed result.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Compose Rx · Ry · Rz</span>
+            <span class="widget-tag">All three sliders</span>
+          </header>
+          <div class="widget-body">
+            <div data-frame-viewer data-axes="x,y,z" data-show-matrix="true"></div>
+          </div>
+        </figure>
+
+        <div class="prose">
+          <p>
+            Compute it in the sandbox to verify. The function <code>rotX(θ)</code> returns a math.js matrix; you can
+            multiply matrices with <code>*</code>.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Sandbox · compose three rotations</span>
+            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="6"
+                 data-initial="% Composite of Rx(45) · Ry(30) · Rz(15), right-to-left.
+% First we apply Rz(15), then Ry(30), then Rx(45).
+rotX(45) * rotY(30) * rotZ(15)"></div>
+          </div>
+        </figure>
+      </section>
+
+      <section class="lecture-section" id="order-matters">
+        <h2>Order matters</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Just remember that in matrix algebra the multiplication of matrices is not commutative. So that means that A times B is not the same as B times A.</p>
+          </div>
+          <p>
+            Matrix multiplication is not commutative. Rx · Ry · Rz is generally <em>not</em> equal to
+            Rz · Ry · Rx. Physically, that means rotating 90° around y and then 90° around x lands you in a different
+            place than rotating 90° around x and then 90° around y. The widget above and the sandbox below let you
+            verify that with the same numbers.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Sandbox · check non-commutativity</span>
+            <span class="widget-tag">Predict before you run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="8"
+                 data-initial="% Same three matrices, two different orders.
+% Predict whether the results are equal before you run.
+rotX(90) * rotY(90)
+rotY(90) * rotX(90)"></div>
+          </div>
+        </figure>
+
+        <div class="callout">
+          <div class="callout-title">Convention warning</div>
+          <p>
+            Different textbooks and software packages use different multiplication orders and different sign
+            conventions. The course's convention is right-to-left composition with the right-hand rule for sign.
+            When you read a paper or a manual, the first thing to check is which convention the author is using.
+            We'll come back to this when we hit the Denavit–Hartenberg standard in Lecture 10.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="recap-end">
+        <h2>Quick recap</h2>
+        <div class="prose">
+          <ul>
+            <li>Ry(θ) and Rz(θ) follow the same projection logic as Rx(θ); only the sign pattern shifts.</li>
+            <li>To compose rotations, multiply the matrices right-to-left.</li>
+            <li>Order matters — matrix multiplication is not commutative.</li>
+            <li>At θ = 0 every elementary rotation collapses to I₃, so a composite of zero rotations is also I₃ — good sanity check.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="homework">
+        <div class="homework">
+          <div class="homework-eyebrow">Homework 02 · due before next session</div>
+          <h3>Compose by hand, verify in code</h3>
+          <ol>
+            <li>By hand: write out the matrix for Rx(45°) · Ry(30°) · Rz(15°). Multiply the matrices in the right order. Don't use a calculator for the sin/cos values yet — keep them symbolic.</li>
+            <li>Open the sandbox and compute the same product numerically. Compare.</li>
+            <li>Now compute Rz(15°) · Ry(30°) · Rx(45°) and confirm it is different.</li>
+            <li>Pick any three angles. Compute Rx · Ry · Rz, then compute (Rx · Ry · Rz)ᵀ. What do you notice? Why?</li>
+          </ol>
+          <div class="homework-deliverables">
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 1</div>
+              <div class="deliverable-name">By-hand sketch</div>
+              <div class="deliverable-desc">A photo of the matrix multiplication, kept symbolic before the final numeric step.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 2</div>
+              <div class="deliverable-name">Code</div>
+              <div class="deliverable-desc">A short script that computes both orderings and prints the difference. Upload to Moodle.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 3</div>
+              <div class="deliverable-name">60-second video</div>
+              <div class="deliverable-desc">Explain in your own voice why the two orderings give different matrices, and what it means physically.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <nav class="lecture-footer-nav">
+        <a href="01-frames-of-reference.html">
+          <span class="label">← Previous</span>
+          <span class="lec-title">Lecture 01 · Frames of reference, Rx</span>
+        </a>
+        <a href="03-translations-homogeneous-transforms.html" class="next">
+          <span class="label">Next →</span>
+          <span class="lec-title">Lecture 03 · Translations &amp; homogeneous transforms</span>
+        </a>
+      </nav>
+    </main>
+
+    <aside class="lecture-side">
+      <div class="lecture-side-title">In this lecture</div>
+      <ol class="lecture-toc">
+        <li><a href="#recap">Quick recap</a></li>
+        <li><a href="#ry">Rotation around Y</a></li>
+        <li><a href="#rz">Rotation around Z</a></li>
+        <li><a href="#composite">Composite rotations</a></li>
+        <li><a href="#order-matters">Order matters</a></li>
+        <li><a href="#recap-end">Quick recap</a></li>
+        <li><a href="#homework">Homework</a></li>
+      </ol>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a>
+  </footer>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [
+          ['rx-recap', 'R_x(\\theta) = \\begin{pmatrix} 1 & 0 & 0 \\\\ 0 & \\cos\\theta & -\\sin\\theta \\\\ 0 & \\sin\\theta & \\cos\\theta \\end{pmatrix}'],
+          ['ry-formula', 'R_y(\\theta) = \\begin{pmatrix} \\cos\\theta & 0 & \\sin\\theta \\\\ 0 & 1 & 0 \\\\ -\\sin\\theta & 0 & \\cos\\theta \\end{pmatrix}'],
+          ['rz-formula', 'R_z(\\theta) = \\begin{pmatrix} \\cos\\theta & -\\sin\\theta & 0 \\\\ \\sin\\theta & \\cos\\theta & 0 \\\\ 0 & 0 & 1 \\end{pmatrix}'],
+          ['composite-formula', 'R_{xyz}(\\theta_1, \\theta_2, \\theta_3) = R_x(\\theta_1) \\cdot R_y(\\theta_2) \\cdot R_z(\\theta_3)'],
+        ];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+
+  <script type="module">
+    import { mountFrameViewer } from '../js/widgets/frame-viewer.js';
+    import { mountMatrixStepper, MATRIX_DEFS } from '../js/widgets/matrix-stepper.js';
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+
+    document.querySelectorAll('[data-frame-viewer]').forEach(mountFrameViewer);
+    document.querySelectorAll('[data-matrix-stepper]').forEach(el =>
+      mountMatrixStepper(el, MATRIX_DEFS[el.dataset.id]));
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

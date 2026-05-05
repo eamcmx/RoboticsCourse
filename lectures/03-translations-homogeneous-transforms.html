@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 03 · Translations and homogeneous transforms</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand">
+        <span class="brand-mark">R</span>
+        Kinematics &amp; Dynamics of Robot Manipulators
+      </a>
+      <div class="topnav-links">
+        <a href="../index.html#syllabus">Syllabus</a>
+        <a href="../index.html#about">About</a>
+      </div>
+    </div>
+  </nav>
+
+  <article class="lecture">
+    <main class="lecture-main">
+
+      <header class="lecture-header">
+        <div class="lecture-eyebrow">Lecture 03 · Module 1</div>
+        <h1 class="lecture-title">Translations and homogeneous transforms</h1>
+        <p class="lecture-subtitle">
+          Rotations alone don't tell us where a frame <em>is</em>, only how it's oriented. We need translation too.
+          The 4×4 homogeneous transform is the trick that lets us pack both into a single matrix that composes
+          by ordinary multiplication.
+        </p>
+      </header>
+
+      <section class="lecture-section" id="motivation">
+        <h2>The problem with rotation alone</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Okay so we have all this beautiful machinery for rotations. But we have a problem. Rotation tells us how something is oriented — it doesn't tell us where it is. So we need something else.</p>
+          </div>
+          <p>
+            A 3×3 rotation matrix R describes how the axes of the mobile frame are oriented relative to the fixed
+            frame. But it says nothing about <em>where</em> the mobile frame's origin sits — every rotation matrix
+            is anchored to the same origin.
+          </p>
+          <p>
+            For a real robot, that's not enough. The end-effector of the SCARA on your bench has both a position
+            (a place in the workspace) and an orientation (a direction the gripper is facing). We need both, in
+            one mathematical object that composes cleanly when we chain joints together.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="translation">
+        <h2>Pure translation</h2>
+        <div class="prose">
+          <p>
+            Start with the simplest case: no rotation, just translation. The mobile frame is parallel to the
+            fixed frame but its origin is offset by a vector p = (pₓ, p_y, p_z).
+          </p>
+          <p>
+            We could store the translation as a 3-vector and remember to add it after every rotation. That works,
+            but it doesn't compose nicely — we'd have to track rotations and translations separately. The clever
+            move is to embed everything in a 4×4 matrix.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Build Tx(d) entry by entry</span>
+            <span class="widget-tag">Stepper · 4×4</span>
+          </header>
+          <div class="widget-body">
+            <div data-matrix-stepper data-id="tx"></div>
+          </div>
+        </figure>
+
+        <div class="math-display" id="tx-formula"></div>
+
+        <div class="prose">
+          <p>
+            T_y(d) and T_z(d) follow the same pattern — identity rotation block, single non-zero translation entry.
+            And if you want to translate along all three axes at once, you just put pₓ, p_y, p_z in the right column.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="homogeneous">
+        <h2>The general homogeneous transform</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>So now we put everything together. The rotation goes in the top-left three by three. The translation goes in the right column. The bottom row is zero zero zero one. That's the homogeneous transformation matrix.</p>
+          </div>
+          <p>
+            In general, a homogeneous transform T packs a rotation R and a translation p into one 4×4:
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">The general transform T</span>
+            <span class="widget-tag">Stepper · 4×4</span>
+          </header>
+          <div class="widget-body">
+            <div data-matrix-stepper data-id="homog_general"></div>
+          </div>
+        </figure>
+
+        <div class="math-display" id="homog-formula"></div>
+
+        <div class="callout">
+          <div class="callout-title">Why the bottom row?</div>
+          <p>
+            The [0 0 0 1] looks like padding, but it's the whole point. To use the matrix on a 3-vector, we
+            <em>extend</em> the vector to 4 entries by appending a 1: a point becomes (x, y, z, 1)ᵀ. The bottom
+            row preserves that 1 under multiplication, which is what makes translations work as matrix
+            multiplications instead of additions. Vectors that represent <em>directions</em> rather than
+            <em>points</em> get a 0 at the bottom, which is what makes them immune to translation.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="composing">
+        <h2>Composing translation and rotation</h2>
+        <div class="prose">
+          <p>
+            With T as a 4×4, you can chain transformations the same way you chained rotations: multiply matrices,
+            right-to-left. The product of two homogeneous transforms is another homogeneous transform — the bottom
+            row stays [0 0 0 1] automatically.
+          </p>
+          <p>
+            Try a few in the sandbox. <code>transl(dx, dy, dz)</code> builds a pure-translation 4×4. <code>homog(R, p)</code>
+            builds a generic one from a 3×3 rotation and a 3-vector translation.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Sandbox · build and compose</span>
+            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="9"
+                 data-initial="% A pure translation along x by 2 units.
+transl(2, 0, 0)
+
+% A 90° rotation around z, lifted to a 4×4 (translation = 0).
+homog(rotZ(90), [0; 0; 0])
+
+% Compose: rotate around z, then translate along the new x.
+homog(rotZ(90), [0; 0; 0]) * transl(2, 0, 0)"></div>
+          </div>
+        </figure>
+
+        <div class="callout">
+          <div class="callout-title">Reading composite transforms</div>
+          <p>
+            <code>T_{AC} = T_{AB} · T_{BC}</code> reads as: <em>"to express something from frame C in frame A, go
+            from C to B (rightmost), then from B to A (leftmost)."</em> Right-to-left composition again, same rule
+            as for rotations. Once you internalise this you can chain any number of frames — that's exactly how
+            we'll handle a multi-joint robot in the next module.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="point-transform">
+        <h2>Transforming a point</h2>
+        <div class="prose">
+          <p>
+            To find a point's coordinates in frame A, given its coordinates in frame B and the transform T_{AB}:
+          </p>
+        </div>
+        <div class="math-display" id="point-formula"></div>
+        <div class="prose">
+          <p>
+            Same shape as in Lecture 01 — but now T is 4×4 and the point is a 4-vector ending in 1. The padding 1
+            picks up the translation column; the rotation block does its usual job on the first three components.
+            Try it:
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Sandbox · transform a point</span>
+            <span class="widget-tag">Predict, then run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="9"
+                 data-initial="% Frame B is rotated 90° around z and translated 2 units along x from frame A.
+% A point at (1, 0, 0) in frame B — where does it sit in frame A?
+T = homog(rotZ(90), [2; 0; 0])
+p_B = [1; 0; 0; 1]
+p_A = T * p_B"></div>
+          </div>
+        </figure>
+      </section>
+
+      <section class="lecture-section" id="recap">
+        <h2>Quick recap</h2>
+        <div class="prose">
+          <ul>
+            <li>Rotation describes orientation; translation describes position. Real frames need both.</li>
+            <li>The 4×4 homogeneous transform packs R into the top-left, p into the right column, [0 0 0 1] into the bottom row.</li>
+            <li>The bottom row is what makes translation behave as matrix multiplication.</li>
+            <li>Homogeneous transforms compose by ordinary right-to-left matrix multiplication.</li>
+            <li>To transform a point, append a 1 to make it a 4-vector and multiply.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="homework">
+        <div class="homework">
+          <div class="homework-eyebrow">Homework 03 · due before next session</div>
+          <h3>Build, compose, transform</h3>
+          <ol>
+            <li>By hand: write the homogeneous transform that translates by (1, 2, 3) and rotates by 30° around z. Show your work.</li>
+            <li>In the sandbox: build the same transform two ways — first as a single <code>homog(rotZ(30), [1;2;3])</code>, then as <code>transl(1,2,3) * homog(rotZ(30), [0;0;0])</code>. Are they equal? If not, why not? Try the other order: <code>homog(rotZ(30), [0;0;0]) * transl(1,2,3)</code> — and explain what changed.</li>
+            <li>Take the point (1, 0, 0) in the rotated/translated frame and find its coordinates in the original frame. Verify by the geometric drawing.</li>
+          </ol>
+          <div class="homework-deliverables">
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 1</div>
+              <div class="deliverable-name">By-hand sketch</div>
+              <div class="deliverable-desc">A photo of the frames sketched and the 4×4 written out.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 2</div>
+              <div class="deliverable-name">Code</div>
+              <div class="deliverable-desc">A short script comparing the three compositions and explaining the difference in a comment.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 3</div>
+              <div class="deliverable-name">60-second video</div>
+              <div class="deliverable-desc">Explain why translate-then-rotate gives a different answer than rotate-then-translate.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <nav class="lecture-footer-nav">
+        <a href="02-rotations-y-z.html">
+          <span class="label">← Previous</span>
+          <span class="lec-title">Lecture 02 · Ry, Rz, composite rotations</span>
+        </a>
+        <a href="04-inverse-of-a-transform.html" class="next">
+          <span class="label">Next →</span>
+          <span class="lec-title">Lecture 04 · Inverse of a homogeneous transform</span>
+        </a>
+      </nav>
+    </main>
+
+    <aside class="lecture-side">
+      <div class="lecture-side-title">In this lecture</div>
+      <ol class="lecture-toc">
+        <li><a href="#motivation">The problem</a></li>
+        <li><a href="#translation">Pure translation</a></li>
+        <li><a href="#homogeneous">The general transform</a></li>
+        <li><a href="#composing">Composing</a></li>
+        <li><a href="#point-transform">Transforming a point</a></li>
+        <li><a href="#recap">Quick recap</a></li>
+        <li><a href="#homework">Homework</a></li>
+      </ol>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a>
+  </footer>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [
+          ['tx-formula', 'T_x(d) = \\begin{pmatrix} 1 & 0 & 0 & d \\\\ 0 & 1 & 0 & 0 \\\\ 0 & 0 & 1 & 0 \\\\ 0 & 0 & 0 & 1 \\end{pmatrix}'],
+          ['homog-formula', 'T = \\begin{pmatrix} R & p \\\\ \\mathbf{0}^{\\top} & 1 \\end{pmatrix} = \\begin{pmatrix} R_{11} & R_{12} & R_{13} & p_x \\\\ R_{21} & R_{22} & R_{23} & p_y \\\\ R_{31} & R_{32} & R_{33} & p_z \\\\ 0 & 0 & 0 & 1 \\end{pmatrix}'],
+          ['point-formula', '\\tilde{p}_A = T_{AB} \\cdot \\tilde{p}_B \\quad \\text{where} \\quad \\tilde{p} = \\begin{pmatrix} x \\\\ y \\\\ z \\\\ 1 \\end{pmatrix}'],
+        ];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+
+  <script type="module">
+    import { mountFrameViewer } from '../js/widgets/frame-viewer.js';
+    import { mountMatrixStepper, MATRIX_DEFS } from '../js/widgets/matrix-stepper.js';
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+
+    document.querySelectorAll('[data-frame-viewer]').forEach(mountFrameViewer);
+    document.querySelectorAll('[data-matrix-stepper]').forEach(el =>
+      mountMatrixStepper(el, MATRIX_DEFS[el.dataset.id]));
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>
