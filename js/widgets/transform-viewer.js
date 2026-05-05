@@ -126,8 +126,14 @@ function format4x4(m) {
 }
 
 export function mountTransformViewer(host) {
-  const rotAxes = (host.dataset.axes || 'x,y,z').split(',').map(s => s.trim()).filter(Boolean);
-  const transAxes = (host.dataset.translateAxes || 'x,y,z').split(',').map(s => s.trim()).filter(Boolean);
+  // Use hasAttribute so an empty data-axes="" parses to no rotation sliders
+  // (rather than falling through to the default x,y,z because '' is falsy).
+  const rotAxes = host.hasAttribute('data-axes')
+    ? host.dataset.axes.split(',').map(s => s.trim()).filter(Boolean)
+    : ['x', 'y', 'z'];
+  const transAxes = host.hasAttribute('data-translate-axes')
+    ? host.dataset.translateAxes.split(',').map(s => s.trim()).filter(Boolean)
+    : ['x', 'y', 'z'];
   const initialR = (host.dataset.initialR || '0,0,0').split(',').map(Number);
   const initialT = (host.dataset.initialT || '0,0,0').split(',').map(Number);
   const showInverse = host.dataset.showInverse === 'true';

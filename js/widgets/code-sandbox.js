@@ -44,12 +44,17 @@ function transl(dx, dy, dz) {
 }
 function homog(R, p) {
   // Build a 4x4 homogeneous transform from a 3x3 R and a 3-vector p.
+  // Accept p as any of: row [px, py, pz], column [[px],[py],[pz]],
+  // math.js matrix, or [px; py; pz] (which math.js parses as a column vector).
   const r = math.matrix(R).valueOf();
-  const t = math.matrix(p).valueOf();
+  const tFlat = math.flatten(math.matrix(p)).valueOf();
+  if (tFlat.length < 3) {
+    throw new Error('homog(R, p): p must have 3 components');
+  }
   return math.matrix([
-    [r[0][0], r[0][1], r[0][2], t[0]],
-    [r[1][0], r[1][1], r[1][2], t[1]],
-    [r[2][0], r[2][1], r[2][2], t[2]],
+    [r[0][0], r[0][1], r[0][2], tFlat[0]],
+    [r[1][0], r[1][1], r[1][2], tFlat[1]],
+    [r[2][0], r[2][1], r[2][2], tFlat[2]],
     [0, 0, 0, 1],
   ]);
 }

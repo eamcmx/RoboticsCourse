@@ -991,9 +991,13 @@ input[type="range"]::-moz-range-thumb {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
 }
-@media (min-width: 720px) {
-  .transform-viewer { grid-template-columns: minmax(0, 5fr) minmax(0, 4fr); }
+/* Side-by-side only on wider screens, where the controls column
+   has room for all its slider labels without clipping. */
+@media (min-width: 900px) {
+  .transform-viewer { grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); }
 }
+.transform-viewer > .frame-viewer-controls { min-width: 0; }
+.transform-viewer .matrix-display { font-size: 0.78rem; }
 .slider-section-heading {
   font-family: var(--font-sans);
   font-size: 0.7rem;
