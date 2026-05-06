@@ -513,9 +513,6 @@ code, kbd {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
 }
-@media (min-width: 720px) {
-  .frame-viewer.is-wide { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
-}
 .frame-viewer-canvas {
   position: relative;
   border-radius: var(--radius);
@@ -796,9 +793,6 @@ input[type="range"]::-moz-range-thumb {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
 }
-@media (min-width: 720px) {
-  .animator { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
-}
 .animator-stats {
   display: flex;
   flex-direction: column;
@@ -925,9 +919,6 @@ input[type="range"]::-moz-range-thumb {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
 }
-@media (min-width: 900px) {
-  .composite-viewer { grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); }
-}
 .composite-viewer > .composite-viewer-sidebar { min-width: 0; }
 .composite-viewer-sidebar {
   display: flex;
@@ -1023,9 +1014,6 @@ input[type="range"]::-moz-range-thumb {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
 }
-@media (min-width: 900px) {
-  .robot-viewer { grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); }
-}
 .robot-viewer > .frame-viewer-controls { min-width: 0; }
 .robot-viewer .frame-viewer-canvas { aspect-ratio: 1 / 1; min-height: 380px; }
 .robot-viewer-controls .slider-label sub {
@@ -1038,11 +1026,6 @@ input[type="range"]::-moz-range-thumb {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
-}
-/* Side-by-side only on wider screens, where the controls column
-   has room for all its slider labels without clipping. */
-@media (min-width: 900px) {
-  .transform-viewer { grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); }
 }
 .transform-viewer > .frame-viewer-controls { min-width: 0; }
 .transform-viewer .matrix-display { font-size: 0.78rem; }
@@ -1088,9 +1071,6 @@ input[type="range"]::-moz-range-thumb {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
-}
-@media (min-width: 900px) {
-  .jacobian-viewer { grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); }
 }
 .jacobian-viewer-canvas {
   display: flex;
