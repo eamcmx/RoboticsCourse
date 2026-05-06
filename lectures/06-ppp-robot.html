@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 06 · PPP robot — three prismatic joints</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand">
+        <span class="brand-mark">R</span>
+        Kinematics &amp; Dynamics of Robot Manipulators
+      </a>
+      <div class="topnav-links">
+        <a href="../index.html#syllabus">Syllabus</a>
+        <a href="../index.html#about">About</a>
+      </div>
+    </div>
+  </nav>
+
+  <article class="lecture">
+    <main class="lecture-main">
+
+      <header class="lecture-header">
+        <div class="lecture-eyebrow">Lecture 06 · Module 2</div>
+        <h1 class="lecture-title">PPP robot — three prismatic joints</h1>
+        <p class="lecture-subtitle">
+          The simplest possible kinematic chain. Three slides, three joint variables, end-effector position
+          equal to the sum of three orthogonal translations. We walk every concept of forward kinematics on
+          this robot before moving to harder ones.
+        </p>
+      </header>
+
+      <section class="lecture-section" id="anatomy">
+        <h2>Anatomy of a Cartesian gantry</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>This is the simplest robot we can build. Three perpendicular slides — one along x, one along y, one along z. The end-effector position is just the sum of three numbers: how far each slide has extended. We solve forward kinematics in our heads. The point of doing it on this robot is to see all the machinery that makes it formal.</p>
+          </div>
+          <p>
+            A PPP robot — three prismatic (P) joints in series, each orthogonal to the previous — is the
+            kinematic equivalent of a 3D printer head: the end-effector goes wherever the three slides have
+            been positioned. By inspection,
+          </p>
+        </div>
+
+        <div class="math-display" id="ppp-position"></div>
+
+        <div class="prose">
+          <p>
+            We could stop there. But the goal isn't just to know where the end-effector is on this robot — it's
+            to write the same machinery (DH parameters → per-joint T → composed FK) we'll re-use on the next six
+            robots without any change. So we'll go through the formal procedure even when we don't strictly need
+            it. The reward shows up in Lecture 09, when the robot has six revolute joints and you can no longer
+            do the FK in your head.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="play">
+        <h2>Play with it first</h2>
+        <div class="prose">
+          <p>
+            Drag the three sliders. The cylindrical rod showing each link extends as you slide. The mobile
+            (orange) frame at the tip of the chain is the end-effector pose; its position should equal
+            (q<sub>1</sub>, q<sub>2</sub>, q<sub>3</sub>) within rounding.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">PPP robot — three slides</span>
+            <span class="widget-tag">Robot viewer</span>
+          </header>
+          <div class="widget-body">
+            <div data-robot-viewer
+                 data-robot="PPP"
+                 data-show-frames="true"></div>
+          </div>
+        </figure>
+
+        <div class="callout">
+          <div class="callout-title">Sanity check</div>
+          <p>
+            With all three sliders at home (0.30, 0.30, 0.30), the end-effector should sit at world coordinates
+            (0.300, 0.300, 0.300). It does — read the position line in the controls. Move any slider; the
+            corresponding world coordinate should change by exactly the slider's delta. That's what "Cartesian"
+            means: the joint variables and the world coordinates of the end-effector are equal up to a constant.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="dh">
+        <h2>The DH parameters</h2>
+        <div class="prose">
+          <p>
+            We assign one frame per joint following the standard-DH convention (full details in Lecture 10 — for
+            now, just see the table). For each joint i, four parameters describe how frame i sits relative to
+            frame i−1: a<sub>i</sub>, α<sub>i</sub>, d<sub>i</sub>, θ<sub>i</sub>. For a prismatic joint the
+            joint variable is d; for a revolute joint it would be θ.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">PPP DH table</span>
+            <span class="widget-tag">Reference</span>
+          </header>
+          <div class="widget-body">
+            <pre class="matrix-display">  joint    a       alpha       d       theta_offset    type
+    1     0      −π/2     q₁ + 0          0           P
+    2     0       π/2     q₂ + 0         π/2          P
+    3     0       0       q₃ + 0          0           P</pre>
+          </div>
+        </figure>
+
+        <div class="prose">
+          <p>
+            Each row produces an elementary 4×4 transform via the standard-DH formula:
+          </p>
+        </div>
+
+        <div class="math-display" id="dh-formula"></div>
+
+        <div class="prose">
+          <p>
+            Substitute the row 1 values: a=0, α=−π/2, d=q<sub>1</sub>, θ=0. The product Rz(0)·Tz(q<sub>1</sub>)·Tx(0)·Rx(−π/2)
+            simplifies to a 90° rotation around x combined with a slide of q<sub>1</sub> along z. Repeat for rows 2 and 3.
+            The composed end-effector transform is
+          </p>
+        </div>
+
+        <div class="math-display" id="ppp-fk"></div>
+      </section>
+
+      <section class="lecture-section" id="sandbox">
+        <h2>Compute forward kinematics in code</h2>
+        <div class="prose">
+          <p>
+            <code>ROBOTS.PPP</code> is the loaded robot definition; <code>forwardKinematics(q, robot)</code>
+            returns the end-effector pose as a 4×4 row-major flat array. Compare what the function returns to
+            the value you read off the slider widget above.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Sandbox · PPP forward kinematics</span>
+            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="11"
+                 data-initial="% Build T1, T2, T3 by hand using rotZ/rotX and transl, then compose.
+% This is what `forwardKinematics(q, ROBOTS.PPP)` does internally.
+q1 = 0.30; q2 = 0.30; q3 = 0.30
+T1 = homog(rotX(-90), [0; 0; q1])
+T2 = homog(rotZ(90) * rotX(90), [0; 0; q2])
+T3 = homog(eye(3), [0; 0; q3])
+
+% Compose right-to-left: T1 then T2 then T3.
+T_ee = T1 * T2 * T3"></div>
+          </div>
+        </figure>
+
+        <div class="prose">
+          <p>
+            The end-effector matrix should have a translation column equal to (q<sub>1</sub>, q<sub>2</sub>, q<sub>3</sub>)
+            up to floating-point error. The rotation block, however, is <em>not</em> the identity — the chain
+            of α twists rotates the tool frame relative to the base. That's a feature, not a bug: when we attach
+            a tool we'll get to choose its orientation through the DH design.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="recap">
+        <h2>Quick recap</h2>
+        <div class="prose">
+          <ul>
+            <li>The PPP is three orthogonal slides. End-effector position equals (q₁, q₂, q₃) up to a constant offset.</li>
+            <li>Even though the geometry is trivial, we use it to walk through the whole DH → per-joint T → composed T pipeline that we'll reuse on every later robot.</li>
+            <li>Each joint contributes one elementary 4×4 transform parameterised by a, α, d, θ. For a prismatic joint, d is the variable.</li>
+            <li>Forward kinematics is the matrix product T_n = T_1 · T_2 · … · T_n.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="homework">
+        <div class="homework">
+          <div class="homework-eyebrow">Homework 06 · due before next session</div>
+          <h3>Verify FK by hand and in code</h3>
+          <ol>
+            <li>By hand: write out T<sub>1</sub>, T<sub>2</sub>, T<sub>3</sub> for the PPP using the DH parameters above with q = (0.4, 0.5, 0.2). Multiply them in order. Show that the translation column of the product is (0.4, 0.5, 0.2).</li>
+            <li>In code: implement a <code>fk_PPP(q)</code> function in MATLAB that takes a 3-vector of joint values and returns the 4×4 end-effector pose. Test it on q = (0.1, 0.2, 0.3), (0.5, 0, 0), and (0, 0, 0).</li>
+            <li>Bonus: animate the end-effector tracing a square in the x–y plane at z = 0.4. Use a <code>for</code> loop over four edge segments, ten via-points each.</li>
+          </ol>
+          <div class="homework-deliverables">
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 1</div>
+              <div class="deliverable-name">By-hand sketch</div>
+              <div class="deliverable-desc">Symbolic T₁, T₂, T₃ and the final product, plus a sketch of the chain.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 2</div>
+              <div class="deliverable-name">Code</div>
+              <div class="deliverable-desc"><code>fk_PPP(q)</code> with three test cases and the optional square animation.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 3</div>
+              <div class="deliverable-name">60-second video</div>
+              <div class="deliverable-desc">Run the animation. Explain what each elementary T contributes — why does the rotation block of T_ee end up non-identity even though all three joints are pure translations?</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <nav class="lecture-footer-nav">
+        <a href="05-rigid-body-motion.html">
+          <span class="label">← Previous</span>
+          <span class="lec-title">Lecture 05 · Rigid-body motion</span>
+        </a>
+        <a href="#" class="next" style="opacity:0.55; pointer-events:none">
+          <span class="label">Next →</span>
+          <span class="lec-title">Lecture 07 · RPP + GUI (coming)</span>
+        </a>
+      </nav>
+    </main>
+
+    <aside class="lecture-side">
+      <div class="lecture-side-title">In this lecture</div>
+      <ol class="lecture-toc">
+        <li><a href="#anatomy">Anatomy</a></li>
+        <li><a href="#play">Play with it</a></li>
+        <li><a href="#dh">DH parameters</a></li>
+        <li><a href="#sandbox">FK in code</a></li>
+        <li><a href="#recap">Quick recap</a></li>
+        <li><a href="#homework">Homework</a></li>
+      </ol>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a>
+  </footer>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [
+          ['ppp-position', 'p_{\\text{ee}} = \\begin{pmatrix} q_1 \\\\ q_2 \\\\ q_3 \\end{pmatrix}'],
+          ['dh-formula', 'T_i^{i-1} = R_z(\\theta_i) \\cdot T_z(d_i) \\cdot T_x(a_i) \\cdot R_x(\\alpha_i)'],
+          ['ppp-fk', 'T_3^0(q_1, q_2, q_3) = T_1^0(q_1) \\cdot T_2^1(q_2) \\cdot T_3^2(q_3)'],
+        ];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+
+  <script type="module">
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    import { mountRobotViewer } from '../js/widgets/robot-viewer.js';
+
+    document.querySelectorAll('[data-robot-viewer]').forEach(mountRobotViewer);
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

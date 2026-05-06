@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 12 · Newton–Raphson inverse kinematics</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand"><span class="brand-mark">R</span>Kinematics &amp; Dynamics of Robot Manipulators</a>
+      <div class="topnav-links"><a href="../index.html#syllabus">Syllabus</a><a href="../index.html#about">About</a></div>
+    </div>
+  </nav>
+  <article class="lecture"><main class="lecture-main">
+    <header class="lecture-header">
+      <div class="lecture-eyebrow">Lecture 12 · Module 3</div>
+      <h1 class="lecture-title">Newton–Raphson — inverse kinematics by iteration</h1>
+      <p class="lecture-subtitle">Forward kinematics is a function from q to x. Inverse kinematics asks the opposite — and usually has no closed form. So we iterate: linearise with the Jacobian, take a Newton step, repeat.</p>
+    </header>
+<section class="lecture-section" id="motivation"><h2>No closed form</h2><div class="prose"><div class="voice"><p>For a 6-DOF arm we can't solve "find q such that the end-effector is here" in closed form. Twelve trig equations, six unknowns, no algebraic shortcut. The pragmatic answer is iteration: start with a guess, linearise, take a Newton step toward the solution, repeat until close enough.</p></div><p>The forward kinematics map x = f(q) is non-linear. To invert it for a desired x*, we set up the residual r(q) = x* − f(q) and try to drive it to zero. Newton–Raphson does this by linearising at each step: replace f(q) with its first-order Taylor expansion using the Jacobian J(q), solve the resulting linear system for a step Δq, update.</p></div></section><section class="lecture-section" id="algorithm"><h2>The algorithm</h2><div class="prose"><div class="math-display" id="nr-update"></div><p>Starting from an initial guess q<sub>0</sub>, the iteration is</p><ol><li>Compute the residual r<sub>k</sub> = x* − f(q<sub>k</sub>).</li><li>Compute the Jacobian J<sub>k</sub> = J(q<sub>k</sub>).</li><li>Solve J<sub>k</sub> Δq = r<sub>k</sub> for Δq (use pinv or a damped pseudo-inverse if J is singular).</li><li>Update q<sub>k+1</sub> = q<sub>k</sub> + αΔq, with step size α ∈ (0, 1].</li><li>Repeat until ||r<sub>k</sub>|| &lt; tolerance or max-iter reached.</li></ol></div></section><section class="lecture-section" id="warmstart"><h2>The warm-start trick</h2><div class="prose"><div class="voice"><p>When you're tracking a trajectory, every new pose is just a small step from the previous one. So use the previous solution as the initial guess for the next pose. With this single change, Newton converges in a handful of iterations instead of dozens, and you avoid jumping into a different IK branch.</p></div><p>The single most important practical trick: when solving IK along a continuous trajectory, use the previous waypoint's solution as the starting guess for the next. This keeps the solver on the same kinematic branch (no sudden joint flips) and converges in 2–5 iterations per waypoint typically.</p></div><figure class="widget"><header class="widget-header"><span class="widget-title">Sandbox · Newton–Raphson on a 2-link arm</span><span class="widget-tag">⌘/Ctrl + ⏎ to run</span></header><div class="widget-body"><div data-code-sandbox data-rows="14" data-initial="% Newton-Raphson IK for a 2-link planar arm.
+% Target: (x, y) = (0.6, 0.3). Initial guess: (45°, 30°).
+L1 = 0.5; L2 = 0.4
+x_target = 0.6; y_target = 0.3
+q = [45 * pi/180, 30 * pi/180]
+
+% One iteration:
+p = [L1*cos(q[1]) + L2*cos(q[1]+q[2]), L1*sin(q[1]) + L2*sin(q[1]+q[2])]
+r = [x_target - p[1], y_target - p[2]]
+J = [-L1*sin(q[1]) - L2*sin(q[1]+q[2]), -L2*sin(q[1]+q[2]);
+      L1*cos(q[1]) + L2*cos(q[1]+q[2]),  L2*cos(q[1]+q[2])]
+dq = inv(J) * r
+q_new = q + dq'"></div></div></figure></section><section class="lecture-section" id="practical"><h2>Practical caveats</h2><div class="prose"><ul><li><strong>Singular configurations make the linear solve blow up.</strong> Use a damped pseudo-inverse: Δq = (JᵀJ + λ²I)⁻¹Jᵀr for some small λ.</li><li><strong>Multiple solutions exist.</strong> A 6-DOF arm typically has up to 8 valid IK branches. Newton finds one — usually the one closest to the initial guess.</li><li><strong>Joint limits aren't enforced by Newton itself.</strong> Clip Δq to keep q in bounds, or add a barrier term to the residual.</li></ul></div></section><section class="lecture-section" id="recap"><h2>Quick recap</h2><div class="prose"><ul><li>IK = invert FK. Closed form rarely exists for ≥6 DOF.</li><li>Newton–Raphson: iterate q ← q + J<sup>+</sup>(x* − f(q)). Converges quadratically near the solution.</li><li>Always warm-start from the previous waypoint when tracking a trajectory.</li><li>Use damped pseudo-inverse near singularities; clip to enforce joint limits.</li></ul></div></section><section class="lecture-section" id="homework">
+<div class="homework"><div class="homework-eyebrow">Homework 12 · due before next session</div>
+<h3>Implement IK and track a path</h3><ol><li>Implement <code>ik_newton(fk_fn, jacobian_fn, x_target, q0, opts)</code> in MATLAB. Return q and convergence info.</li><li>Test on a 2-link planar arm. Track a circle of radius 0.3 centred at (0.5, 0.0) using 100 waypoints. Plot joint values vs. time.</li><li>Demonstrate the warm-start advantage: solve the same circle with cold starts (q0 = zeros every time) and with warm starts. Report iteration counts side by side.</li></ol>
+<div class="homework-deliverables"><div class="deliverable"><div class="deliverable-num">Deliverable 1</div><div class="deliverable-name">By-hand sketch</div><div class="deliverable-desc">A sketch of the residual-and-Jacobian update, with one full iteration worked out symbolically.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 2</div><div class="deliverable-name">Code</div><div class="deliverable-desc"><code>ik_newton</code> + circle-tracking script + iteration-count comparison.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 3</div><div class="deliverable-name">60-second video</div><div class="deliverable-desc">Show the circle being traced under both warm- and cold-start. Explain why warm-start matters.</div></div></div></div></section>
+    <nav class="lecture-footer-nav">
+      <a href="11-jacobian.html"><span class="label">← Previous</span><span class="lec-title">Lecture 11 · Jacobian</span></a>
+      <a href="13-limits-singularities.html" class="next"><span class="label">Next →</span><span class="lec-title">Lecture 13 · Limits & singularities</span></a>
+    </nav>
+  </main>
+  <aside class="lecture-side">
+    <div class="lecture-side-title">In this lecture</div>
+    <ol class="lecture-toc"><li><a href="#motivation">No closed form</a></li><li><a href="#algorithm">Algorithm</a></li><li><a href="#warmstart">Warm-start</a></li><li><a href="#practical">Caveats</a></li><li><a href="#recap">Recap</a></li><li><a href="#homework">Homework</a></li></ol>
+  </aside></article>
+  <footer class="site-footer">Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a></footer>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [["nr-update", "q_{k+1} = q_k + J(q_k)^{+} \\, (x^{*} - f(q_k))"]];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+  <script type="module">
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

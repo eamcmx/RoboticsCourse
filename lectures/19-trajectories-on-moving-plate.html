@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 19 · Trajectories on a moving plate</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand"><span class="brand-mark">R</span>Kinematics &amp; Dynamics of Robot Manipulators</a>
+      <div class="topnav-links"><a href="../index.html#syllabus">Syllabus</a><a href="../index.html#about">About</a></div>
+    </div>
+  </nav>
+  <article class="lecture"><main class="lecture-main">
+    <header class="lecture-header">
+      <div class="lecture-eyebrow">Lecture 19 · Module 4</div>
+      <h1 class="lecture-title">Trajectories on a moving plate — chained transforms</h1>
+      <p class="lecture-subtitle">When the workpiece itself is being held by another robot, the trajectory is defined in a frame that's no longer fixed. Every via-point has to be re-expressed in the world before IK can run.</p>
+    </header>
+<section class="lecture-section" id="setup"><h2>Two robots, one trajectory</h2><div class="prose"><div class="voice"><p>Imagine robot A holding a plate. Robot B is going to draw a line on the plate. If the plate were sitting on a table the trajectory would just be a list of poses in the world. But the plate is moving — robot A is rotating it. So every pose has to be defined in the plate's frame, then transformed into the world via robot A's end-effector pose.</p></div><p>The setup: robot A holds a flat workpiece (a "plate") rigidly at its end-effector. The trajectory we want robot B to follow is defined relative to the plate's surface — say, the four corners of a rectangle drawn on it. As long as A is still, the rectangle is just four world-frame poses and B can run move L between them.</p><p>The interesting case: A moves while B is working. Now the rectangle's world-frame coordinates change at every tick.</p></div></section><section class="lecture-section" id="chain"><h2>The transform chain</h2><div class="prose"><p>Let:</p><ul><li>T<sub>A</sub><sup>0</sup>(q<sub>A</sub>) be robot A's end-effector pose in the world (controlled by A's joints).</li><li>T<sub>plate</sub><sup>A</sup> be the plate's pose relative to A's end-effector (constant — the plate is rigidly attached).</li><li>T<sub>via</sub><sup>plate</sup> be the desired pose for robot B in the plate's frame (e.g., a corner of the rectangle).</li></ul><p>Then the world-frame target for robot B is the chain</p><div class="math-display" id="chain-formula"></div><p>Run B's IK on T<sub>B</sub><sup>0</sup> at every tick. As A moves, the chain product evolves and B's targets shift; B's IK keeps tracking them.</p></div></section><section class="lecture-section" id="practical"><h2>Practical concerns</h2><div class="prose"><ul><li><strong>Sampling rate.</strong> The chain has to be re-evaluated at every controller tick — typically 1 kHz on industrial hardware, 50–100 Hz in simulation.</li><li><strong>Latency.</strong> If reading T<sub>A</sub><sup>0</sup> from A is slow, B will lag. Match the loop rate to the sensor update.</li><li><strong>Constraint compatibility.</strong> A's motion plus B's required pose may exceed B's reach at some plate positions. Plan for unreachable regions.</li></ul></div><figure class="widget"><header class="widget-header"><span class="widget-title">Sandbox · world-frame target as A moves</span><span class="widget-tag">⌘/Ctrl + ⏎ to run</span></header><div class="widget-body"><div data-code-sandbox data-rows="13" data-initial="% A holds a plate. A's pose changes; B's target in plate frame is constant.
+T_via_plate = homog(eye(3), [0.05; 0.05; 0])    % corner of a 10cm square
+T_plate_A   = homog(eye(3), [0; 0; 0.02])         % plate is 2cm above A's flange
+
+% At time t1, A's pose:
+T_A1 = homog(rotZ(0), [0.5; 0; 0.4])
+T_B_target_t1 = T_A1 * T_plate_A * T_via_plate
+
+% At time t2, A has rotated 30° around z:
+T_A2 = homog(rotZ(30), [0.5; 0; 0.4])
+T_B_target_t2 = T_A2 * T_plate_A * T_via_plate
+
+% Different world-frame targets — B has to keep tracking.
+[T_B_target_t1, T_B_target_t2]"></div></div></figure></section><section class="lecture-section" id="recap"><h2>Quick recap</h2><div class="prose"><ul><li>When the workpiece is on a moving robot, every via-point is the chain T<sub>A</sub>·T<sub>plate</sub><sup>A</sup>·T<sub>via</sub><sup>plate</sup>.</li><li>Re-evaluate the chain at every controller tick.</li><li>Plan around the joint A's motion — some plate positions push B's targets out of B's workspace.</li></ul></div></section><section class="lecture-section" id="homework">
+<div class="homework"><div class="homework-eyebrow">Homework 19 · due before next session</div>
+<h3>Track a square on a rotating plate</h3><ol><li>Define a 10×10 cm square in plate frame.</li><li>Drive robot A through a 90° rotation around its z-axis over 100 ticks. At each tick, compute the world-frame poses of all four square corners.</li><li>Run move L on robot B between successive corners. Plot B's end-effector path in the world frame and (separately) in the plate frame. The plate-frame path should be a perfect square; the world-frame path should be a sheared/curved version of it.</li></ol>
+<div class="homework-deliverables"><div class="deliverable"><div class="deliverable-num">Deliverable 1</div><div class="deliverable-name">By-hand sketch</div><div class="deliverable-desc">A diagram of the three-frame chain (world, A, plate) and the via-points.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 2</div><div class="deliverable-name">Code</div><div class="deliverable-desc">The chain-evaluator + the dual-plot script.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 3</div><div class="deliverable-name">60-second video</div><div class="deliverable-desc">Show both plots side by side. Explain why the world-frame path is no longer a square.</div></div></div></div></section>
+    <nav class="lecture-footer-nav">
+      <a href="18-robodk-api.html"><span class="label">← Previous</span><span class="lec-title">Lecture 18 · RoboDK API</span></a>
+      <a href="20-master-slave.html" class="next"><span class="label">Next →</span><span class="lec-title">Lecture 20 · Master-slave</span></a>
+    </nav>
+  </main>
+  <aside class="lecture-side">
+    <div class="lecture-side-title">In this lecture</div>
+    <ol class="lecture-toc"><li><a href="#setup">Setup</a></li><li><a href="#chain">Transform chain</a></li><li><a href="#practical">Practical</a></li><li><a href="#recap">Recap</a></li><li><a href="#homework">Homework</a></li></ol>
+  </aside></article>
+  <footer class="site-footer">Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a></footer>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [["chain-formula", "T_B^{\\,0} = T_A^{\\,0}(q_A) \\cdot T_{\\text{plate}}^{\\,A} \\cdot T_{\\text{via}}^{\\,\\text{plate}}"]];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+  <script type="module">
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

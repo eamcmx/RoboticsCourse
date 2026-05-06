@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 17 · Arduino + joysticks: a homemade teach-pendant</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand"><span class="brand-mark">R</span>Kinematics &amp; Dynamics of Robot Manipulators</a>
+      <div class="topnav-links"><a href="../index.html#syllabus">Syllabus</a><a href="../index.html#about">About</a></div>
+    </div>
+  </nav>
+  <article class="lecture"><main class="lecture-main">
+    <header class="lecture-header">
+      <div class="lecture-eyebrow">Lecture 17 · Module 4</div>
+      <h1 class="lecture-title">Arduino + joysticks — building a teach-pendant</h1>
+      <p class="lecture-subtitle">Industrial robots come with $5,000 teach-pendants. Yours costs €15 in joysticks. Map two analog sticks and a digital pin to six joint commands.</p>
+    </header>
+<section class="lecture-section" id="industrial"><h2>What the industrial pendant does</h2><div class="prose"><div class="voice"><p>A teach-pendant is just a way to give the controller joint commands directly. The expensive ones have a touch screen and a dead-man switch and look like a piece of pro audio gear. Mechanically they're the same as two joysticks plus a button.</p></div><p>Industrial teach-pendants are physical interfaces with usually a single thumb-stick or trackball, a mode switch, and a dead-man button. The user picks a frame (base, tool, or joint) and a degree-of-freedom subset, then drives the robot incrementally. The mode switch toggles between joint subsets — typically (1, 2, 3) and (4, 5, 6).</p></div></section><section class="lecture-section" id="hardware"><h2>The minimum hardware</h2><div class="prose"><p>Two analog joysticks (each gives two axes) plus one digital pin. Total: 4 analog + 1 digital. Wired to an Arduino:</p><ul><li>Joystick 1: A0 (x), A1 (y) → q<sub>1</sub>, q<sub>2</sub> rate command.</li><li>Joystick 2: A2 (x), A3 (y) → q<sub>3</sub>, q<sub>4</sub> rate command.</li><li>Digital pin D2: mode toggle.</li></ul><p>With mode = 0, axes drive joints 1–4. With mode = 1, axes drive joints 5–6 (and two are unused). With six DOFs and four sticks, you need either two modes or six sticks; one digital pin is the cheap solution.</p></div></section><section class="lecture-section" id="protocol"><h2>The serial protocol</h2><div class="prose"><p>Arduino reads analog values, packs them as comma-separated text, sends over USB at 115200 baud:</p><pre class="matrix-display">Arduino → Host:    "512,512,512,512,0\n"
+                    a0,  a1,  a2,  a3, mode</pre><p>Host (MATLAB or Python) reads, converts to joint rate commands, integrates over time to maintain joint targets, and sends those targets to RoboDK or the real robot.</p></div><figure class="widget"><header class="widget-header"><span class="widget-title">Sandbox · simulate the host loop</span><span class="widget-tag">⌘/Ctrl + ⏎ to run</span></header><div class="widget-body"><div data-code-sandbox data-rows="13" data-initial="% Host-side processing of one Arduino frame.
+% Centre is 512; full deflection is +-512.
+frame = [512, 600, 400, 512, 0]   % a0..a3, mode
+rate = (frame[1:4] - 512) / 512    % normalised to [-1, 1]
+
+% At mode 0, this maps to joints 1..4. Each joint integrates its rate.
+q_target_old = [0, 0, 0, 0, 0, 0]
+dt = 0.05    % 50 ms loop
+speed = 0.5  % rad/s at full deflection
+
+q_target = q_target_old
+q_target[1] = q_target_old[1] + rate[1] * speed * dt
+q_target[2] = q_target_old[2] + rate[2] * speed * dt
+q_target"></div></div></figure></section><section class="lecture-section" id="recap"><h2>Quick recap</h2><div class="prose"><ul><li>A teach-pendant is just a hardware front-end for joint commands.</li><li>Two joysticks plus a digital toggle covers six DOFs at a fraction of an industrial pendant's cost.</li><li>The host loop reads, integrates rates into targets, and forwards to the controller.</li></ul></div></section><section class="lecture-section" id="homework">
+<div class="homework"><div class="homework-eyebrow">Homework 17 · due before next session</div>
+<h3>Wire and write the host loop</h3><ol><li>Wire two joysticks and a button to an Arduino. Write the firmware that prints comma-separated values at 50 Hz.</li><li>In MATLAB, write the host loop that reads the serial line, integrates rates into joint targets, and sends those targets to RoboDK's API.</li><li>Drive the simulated UR5 from your real joystick. Demonstrate that the mode toggle correctly switches between joints (1–3) and (4–6).</li></ol>
+<div class="homework-deliverables"><div class="deliverable"><div class="deliverable-num">Deliverable 1</div><div class="deliverable-name">By-hand sketch</div><div class="deliverable-desc">Wiring diagram of the Arduino + sticks.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 2</div><div class="deliverable-name">Code</div><div class="deliverable-desc">Firmware <code>.ino</code> and host-side <code>.m</code>.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 3</div><div class="deliverable-name">60-second video</div><div class="deliverable-desc">Drive the robot. Show the mode switch working.</div></div></div></div></section>
+    <nav class="lecture-footer-nav">
+      <a href="16-move-c.html"><span class="label">← Previous</span><span class="lec-title">Lecture 16 · move C</span></a>
+      <a href="18-robodk-api.html" class="next"><span class="label">Next →</span><span class="lec-title">Lecture 18 · RoboDK API</span></a>
+    </nav>
+  </main>
+  <aside class="lecture-side">
+    <div class="lecture-side-title">In this lecture</div>
+    <ol class="lecture-toc"><li><a href="#industrial">Industrial pendants</a></li><li><a href="#hardware">Minimum hardware</a></li><li><a href="#protocol">Serial protocol</a></li><li><a href="#recap">Recap</a></li><li><a href="#homework">Homework</a></li></ol>
+  </aside></article>
+  <footer class="site-footer">Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a></footer>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+  <script type="module">
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

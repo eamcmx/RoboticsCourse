@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 11 · The Jacobian</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand">
+        <span class="brand-mark">R</span>
+        Kinematics &amp; Dynamics of Robot Manipulators
+      </a>
+      <div class="topnav-links">
+        <a href="../index.html#syllabus">Syllabus</a>
+        <a href="../index.html#about">About</a>
+      </div>
+    </div>
+  </nav>
+
+  <article class="lecture">
+    <main class="lecture-main">
+
+      <header class="lecture-header">
+        <div class="lecture-eyebrow">Lecture 11 · Module 3</div>
+        <h1 class="lecture-title">The Jacobian — joint space ↔ task space</h1>
+        <p class="lecture-subtitle">
+          A single matrix that says &ldquo;if you nudge each joint by a little, the end-effector moves like
+          this.&rdquo; The bridge between the world of <em>q</em>s and the world of <em>x</em>s — and the
+          object every velocity controller, every iterative IK solver, and every singularity diagnostic is
+          built on top of.
+        </p>
+      </header>
+
+      <section class="lecture-section" id="motivation">
+        <h2>The bridge between two spaces</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Forward kinematics gives us a non-linear map from joint space to task space. The Jacobian is its derivative — the local linear approximation. With it we can answer two questions we couldn't before: what end-effector velocity comes out for a given joint velocity, and which joint velocities will produce a desired end-effector velocity.</p>
+          </div>
+          <p>
+            Up to now, every map we've built has been a non-linear function. The end-effector pose depends on the
+            joint values through a long chain of trig identities. To do anything iterative — track a path,
+            invert the kinematics, control velocity — we need a <em>linear</em> approximation we can manipulate.
+            That linearisation is the Jacobian <strong>J(q)</strong>.
+          </p>
+          <p>
+            For a robot with <em>n</em> joints whose end-effector pose is described by an <em>m</em>-dimensional
+            output (positions, possibly orientations), J is the <em>m</em>×<em>n</em> matrix of partial
+            derivatives:
+          </p>
+        </div>
+
+        <div class="math-display" id="jac-defn"></div>
+
+        <div class="prose">
+          <p>
+            That equation is the whole lecture in one line. The end-effector velocity is a linear combination
+            of the columns of J, with the joint rates as coefficients. Move joint 1 alone, and the
+            end-effector moves along column 1 of J. Move joint 2 alone, along column 2. Move them together,
+            and you superimpose.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="2-link">
+        <h2>Walkthrough: the 2-link planar arm</h2>
+        <div class="prose">
+          <p>
+            We'll do the derivation by hand on the smallest case that's still interesting — a planar arm with
+            two revolute joints and link lengths <em>L</em>₁ and <em>L</em>₂. The forward kinematics is short
+            enough to fit on one line:
+          </p>
+        </div>
+
+        <div class="math-display" id="fk-2link"></div>
+
+        <div class="prose">
+          <p>
+            Two outputs (<em>x</em>, <em>y</em>), two joint variables (<em>q</em>₁, <em>q</em>₂). So J is 2×2.
+            Take partial derivatives entry by entry — click each cell of the grid below and the prompt will
+            walk you through the differentiation.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Build J(q) for the 2-link arm</span>
+            <span class="widget-tag">Stepper · 2×2</span>
+          </header>
+          <div class="widget-body">
+            <div data-matrix-stepper data-id="jacobian_2link" data-reveals="#jac-2link-formula"></div>
+          </div>
+        </figure>
+
+        <div class="math-display gated" id="jac-2link-formula"></div>
+
+        <div class="prose">
+          <p>
+            Now multiply out the determinant. The cross terms with sin(<em>q</em>₁) cos(<em>q</em>₁+<em>q</em>₂) and
+            cos(<em>q</em>₁) sin(<em>q</em>₁+<em>q</em>₂) telescope into a sine-of-difference identity, and what's
+            left over is astonishingly clean:
+          </p>
+        </div>
+
+        <div class="math-display" id="det-2link"></div>
+
+        <div class="prose">
+          <p>
+            That tells us straight away when the Jacobian goes singular: when sin(<em>q</em>₂) = 0 — that is,
+            when the elbow is fully extended (<em>q</em>₂ = 0) or fully folded (<em>q</em>₂ = ±π). At those
+            poses, the two columns of J become parallel; the matrix loses rank; and certain end-effector
+            motions become unreachable no matter how fast we spin the joints. We'll feel this happen in the
+            widget below.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="see-it">
+        <h2>See each column do its job</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>The widget below is the Jacobian made visible. The two q sliders place the arm. The two q-dot sliders set how fast each joint is moving. The red arrow at the tip is what joint 1 alone does to the tool. The green arrow is what joint 2 alone does. The blue arrow is the sum — the actual tool velocity for the joint rates you picked.</p>
+          </div>
+          <p>
+            Try this experiment: set <em>q̇</em>₂ = 0 (only joint 1 is moving) and watch how the red arrow at
+            the tip swings as you change <em>q</em>₁ and <em>q</em>₂. That arrow is column 1 of J scaled by
+            <em>q̇</em>₁. It is always perpendicular to the line from the base to the tip — because joint 1
+            rotates the whole arm rigidly around the base.
+          </p>
+          <p>
+            Now set <em>q̇</em>₁ = 0 and turn <em>q̇</em>₂ on. The green arrow appears, perpendicular to the
+            second link this time — because joint 2 rotates only the second link around the elbow, so its
+            contribution to the tip velocity is whatever vector that rotation produces at the wrist offset.
+            That's column 2 of J scaled by <em>q̇</em>₂.
+          </p>
+          <p>
+            Finally, click <strong>Singular pose</strong>. The two arrows now point in the same direction —
+            both red and green are along the same line. No combination of <em>q̇</em>₁ and <em>q̇</em>₂ can
+            produce a velocity perpendicular to that line. The det(J) gauge has crashed to zero. You have just
+            met your first singularity, geometrically and numerically at the same time.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">2-link Jacobian explorer · drag the joints, watch the columns</span>
+            <span class="widget-tag">live · ẋ = J(q)·q̇</span>
+          </header>
+          <div class="widget-body">
+            <div data-jacobian-viewer
+                 data-l1="0.5" data-l2="0.4"
+                 data-q1="60" data-q2="60"
+                 data-qd1="40" data-qd2="0"></div>
+          </div>
+        </figure>
+
+        <div class="callout">
+          <div class="callout-title">Read the matrix and the arrows together</div>
+          <p>
+            Column 1 of the displayed J should always equal (red arrow length × cos/sin of red arrow direction)
+            divided by your current <em>q̇</em>₁ (in rad/s). Same for column 2 and the green arrow. The blue
+            arrow is the column-wise weighted sum. When you see the picture and the numbers move together,
+            ẋ = J · q̇ stops being a formula and starts being a sentence about geometry.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="geometric-form">
+        <h2>The 6×n geometric Jacobian</h2>
+        <div class="prose">
+          <p>
+            For a spatial robot with <em>n</em> joints, the end-effector has both linear and angular velocity —
+            six components in total. The geometric Jacobian is therefore a <strong>6×n</strong> matrix:
+          </p>
+        </div>
+
+        <div class="math-display" id="geom-jac"></div>
+
+        <div class="prose">
+          <p>
+            The top three rows give the linear velocity of the end-effector; the bottom three give its
+            angular velocity. The <em>i</em>-th column is what the end-effector does when joint <em>i</em>
+            alone moves at unit speed.
+          </p>
+          <p>
+            For a <strong>revolute</strong> joint <em>i</em>, the column has a clean geometric interpretation:
+          </p>
+        </div>
+
+        <div class="math-display" id="rev-col"></div>
+
+        <div class="prose">
+          <p>
+            Read it as &ldquo;the cross product of the joint axis with the lever arm to the tool, stacked over the
+            joint axis itself.&rdquo; The cross product captures the linear-velocity contribution; the joint axis
+            below it is the angular-velocity contribution.
+          </p>
+          <p>
+            For a <strong>prismatic</strong> joint <em>i</em>, the column simplifies:
+          </p>
+        </div>
+
+        <div class="math-display" id="prism-col"></div>
+
+        <div class="prose">
+          <p>
+            A prismatic joint translates the end-effector along its axis at a rate equal to <em>q̇<sub>i</sub></em>,
+            and adds nothing to the angular velocity.
+          </p>
+          <p>
+            <em>z</em><sub><em>i</em>−1</sub> and <em>o</em><sub><em>i</em>−1</sub> both come from the chain frames
+            we built in Lecture 10. So the Jacobian is &ldquo;free&rdquo; once you have the DH chain — read off the joint
+            axes and origins, drop them into these formulas, done.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="numerical">
+        <h2>Numerical Jacobian — the cheap fallback</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>If you don't feel like deriving an analytical Jacobian for a 7-DoF arm by hand — and most weeks, I don't — you can compute J numerically with finite differences. Evaluate FK at q, perturb each joint by a small ε, evaluate FK at q + ε·eᵢ, take the difference and divide by ε. Each iteration gives you one column.</p>
+          </div>
+          <p>
+            The sandbox below builds both the analytical and the numerical Jacobian for the 2-link arm at a
+            specific configuration, and compares them. They should agree to about ε precision.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Sandbox · analytical vs numerical Jacobian</span>
+            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="20"
+                 data-initial="% 2-link planar arm. We pick a configuration and compute J both ways.
+L1 = 0.5
+L2 = 0.4
+q1 = pi/3
+q2 = pi/4
+
+% Forward kinematics at q
+p = [L1*cos(q1) + L2*cos(q1+q2); L1*sin(q1) + L2*sin(q1+q2)]
+
+% Analytical Jacobian — what we just derived in the stepper
+J_a = [-L1*sin(q1) - L2*sin(q1+q2), -L2*sin(q1+q2);
+        L1*cos(q1) + L2*cos(q1+q2),  L2*cos(q1+q2)]
+
+% Numerical Jacobian by forward finite differences. Two perturbed FK calls.
+e = 1e-6
+p_q1 = [L1*cos(q1+e) + L2*cos(q1+e+q2); L1*sin(q1+e) + L2*sin(q1+e+q2)]
+p_q2 = [L1*cos(q1) + L2*cos(q1+q2+e); L1*sin(q1) + L2*sin(q1+q2+e)]
+J_n  = [(p_q1[1]-p[1])/e, (p_q2[1]-p[1])/e;
+        (p_q1[2]-p[2])/e, (p_q2[2]-p[2])/e]
+
+% They should agree to about sqrt(e) precision
+J_a - J_n
+
+% Determinant: should equal L1 * L2 * sin(q2)
+det(J_a)
+L1 * L2 * sin(q2)"></div>
+          </div>
+        </figure>
+
+        <div class="callout">
+          <div class="callout-title">When to use which</div>
+          <p>
+            Analytical: faster, exact, but you have to derive it once per robot. Numerical: slower (n+1 FK
+            evaluations per call), accurate to about √ε, but generic — drop in any FK function and you get a
+            Jacobian. In production controllers, analytical wins. In research code where you change robots
+            twice a week, numerical wins.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="two-uses">
+        <h2>Two ways to use J</h2>
+        <div class="prose">
+          <p>
+            The Jacobian is the door between joint space and task space, and you'll walk through that door in
+            two directions. Both are coming up in the next two lectures.
+          </p>
+          <p>
+            <strong>Forward direction (this is easy):</strong> given joint velocities, compute end-effector
+            velocity. Just the matrix-vector product ẋ = J · q̇. This is what the widget above is doing every
+            time you move a slider.
+          </p>
+          <p>
+            <strong>Inverse direction (this is most of robotics):</strong> given a desired end-effector
+            velocity, find joint velocities. Solve q̇ = J⁻¹ · ẋ — or, when J is non-square or singular, use
+            a pseudo-inverse J⁺. Lecture 12 builds Newton–Raphson IK on top of this. Lecture 13 looks at what
+            goes wrong near det(J) = 0 and how to damp the pseudo-inverse so the robot doesn't fly off the
+            handle.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="recap">
+        <h2>Quick recap</h2>
+        <div class="prose">
+          <ul>
+            <li>The Jacobian J(q) is the linear approximation of FK: <strong>ẋ = J(q) · q̇</strong>.</li>
+            <li>The <em>i</em>-th column of J is what the end-effector does when joint <em>i</em> alone moves.</li>
+            <li>For a 2-link planar arm, J is 2×2 and det(J) = L₁ L₂ sin(<em>q</em>₂). Singular at <em>q</em>₂ = 0 or ±π.</li>
+            <li>Geometric Jacobian for a spatial robot is 6×<em>n</em>, with the columns built from joint axes and origins of the DH chain.</li>
+            <li>Compute analytically when you have time to derive it, numerically (finite differences) when you don't.</li>
+            <li>Singularities are configurations where J loses rank — some directions of motion become unreachable.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="homework">
+        <div class="homework">
+          <div class="homework-eyebrow">Homework 11 · due before next session</div>
+          <h3>Derive, code, and feel the singularity</h3>
+          <ol>
+            <li>By hand: derive the analytical 2×2 Jacobian of the 2-link planar arm. Show that
+                det(J) = L₁ L₂ sin(<em>q</em>₂). Identify the two singular configurations.</li>
+            <li>In code: implement <code>jacobian_numerical(fk, q, eps)</code> using forward finite differences.
+                Compare against the analytical Jacobian for the 2-link arm at three configurations:
+                (<em>q</em>₂ = 0.1 rad), (<em>q</em>₂ = π/4), (<em>q</em>₂ = π/2). Report the max element-wise
+                error in each case.</li>
+            <li>For a UR5 (analytical FK from the DH parameters in the <code>js/robots/</code> module),
+                compute the numerical Jacobian at the home pose and at <em>q</em> = (0, 0, 0, 0, 0, 0).
+                Compute the smallest singular value σ<sub>min</sub>(J). Which configuration is closer to
+                singular? Why?</li>
+            <li>Open the widget on this page and find a configuration where det(J) is positive but the red and
+                green arrows point in <em>nearly</em> the same direction. What happens to the magnitudes of
+                <em>q̇</em>₁ and <em>q̇</em>₂ if you ask for a small motion perpendicular to that direction?
+                (Hint: think about what 1/det does to the inverse.)</li>
+          </ol>
+          <div class="homework-deliverables">
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 1</div>
+              <div class="deliverable-name">By-hand sketch</div>
+              <div class="deliverable-desc">The analytical 2×2 Jacobian and the determinant calculation, with the singularities marked on a sketch of the 2-link arm.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 2</div>
+              <div class="deliverable-name">Code</div>
+              <div class="deliverable-desc">The <code>jacobian_numerical</code> function plus the comparison test on the 2-link arm and the UR5 σ-min calculation.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 3</div>
+              <div class="deliverable-name">60-second video</div>
+              <div class="deliverable-desc">Use the widget to demonstrate a near-singular configuration. Talk through what the red and green arrows are showing and why that means certain motions are about to require enormous joint rates.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <nav class="lecture-footer-nav">
+        <a href="10-dh-convention.html">
+          <span class="label">← Previous</span>
+          <span class="lec-title">Lecture 10 · DH convention</span>
+        </a>
+        <a href="12-newton-raphson-ik.html" class="next">
+          <span class="label">Next →</span>
+          <span class="lec-title">Lecture 12 · Newton–Raphson IK</span>
+        </a>
+      </nav>
+    </main>
+
+    <aside class="lecture-side">
+      <div class="lecture-side-title">In this lecture</div>
+      <ol class="lecture-toc">
+        <li><a href="#motivation">Bridge between spaces</a></li>
+        <li><a href="#2-link">2-link walkthrough</a></li>
+        <li><a href="#see-it">See each column</a></li>
+        <li><a href="#geometric-form">6×n geometric form</a></li>
+        <li><a href="#numerical">Numerical Jacobian</a></li>
+        <li><a href="#two-uses">Two ways to use J</a></li>
+        <li><a href="#recap">Quick recap</a></li>
+        <li><a href="#homework">Homework</a></li>
+      </ol>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a>
+  </footer>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [
+          ['jac-defn',
+           '\\dot{x} \\;=\\; J(q)\\,\\dot{q}, \\qquad J \\in \\mathbb{R}^{m \\times n}, \\qquad J_{ij} = \\dfrac{\\partial x_i}{\\partial q_j}'],
+          ['fk-2link',
+           'p(q) \\;=\\; \\begin{pmatrix} L_1 \\cos q_1 + L_2 \\cos(q_1 + q_2) \\\\ L_1 \\sin q_1 + L_2 \\sin(q_1 + q_2) \\end{pmatrix}'],
+          ['jac-2link-formula',
+           'J(q) \\;=\\; \\begin{pmatrix} -L_1 \\sin q_1 - L_2 \\sin(q_1+q_2) & -L_2 \\sin(q_1+q_2) \\\\ L_1 \\cos q_1 + L_2 \\cos(q_1+q_2) & L_2 \\cos(q_1+q_2) \\end{pmatrix}'],
+          ['det-2link',
+           '\\det J(q) \\;=\\; L_1 \\, L_2 \\, \\sin q_2'],
+          ['geom-jac',
+           'J(q) \\;=\\; \\begin{pmatrix} J_v(q) \\\\ J_\\omega(q) \\end{pmatrix} \\in \\mathbb{R}^{6 \\times n}, \\qquad \\begin{pmatrix} v \\\\ \\omega \\end{pmatrix} = J(q)\\,\\dot{q}'],
+          ['rev-col',
+           'J_i^{\\text{rev}} \\;=\\; \\begin{pmatrix} z_{i-1} \\times (o_n - o_{i-1}) \\\\ z_{i-1} \\end{pmatrix}'],
+          ['prism-col',
+           'J_i^{\\text{prism}} \\;=\\; \\begin{pmatrix} z_{i-1} \\\\ \\mathbf{0} \\end{pmatrix}'],
+        ];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+
+  <script type="module">
+    import { mountMatrixStepper, MATRIX_DEFS } from '../js/widgets/matrix-stepper.js';
+    import { mountCodeSandbox }                 from '../js/widgets/code-sandbox.js';
+    import { mountJacobianViewer }              from '../js/widgets/jacobian-viewer.js';
+
+    document.querySelectorAll('[data-jacobian-viewer]').forEach(mountJacobianViewer);
+    document.querySelectorAll('[data-matrix-stepper]').forEach(el =>
+      mountMatrixStepper(el, MATRIX_DEFS[el.dataset.id]));
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

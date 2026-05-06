@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 10 · The Denavit–Hartenberg convention</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand"><span class="brand-mark">R</span>Kinematics &amp; Dynamics of Robot Manipulators</a>
+      <div class="topnav-links"><a href="../index.html#syllabus">Syllabus</a><a href="../index.html#about">About</a></div>
+    </div>
+  </nav>
+  <article class="lecture"><main class="lecture-main">
+    <header class="lecture-header">
+      <div class="lecture-eyebrow">Lecture 10 · Module 2</div>
+      <h1 class="lecture-title">The Denavit–Hartenberg convention</h1>
+      <p class="lecture-subtitle">A coordination standard between humans. Four parameters per joint and a strict procedure to assign frames so any two engineers describing the same robot get the same matrices.</p>
+    </header>
+<section class="lecture-section" id="motivation"><h2>Why a convention?</h2><div class="prose"><div class="voice"><p>Up to here you've written FK by composing transforms in whatever order made sense to you. That's fine for solo work but it doesn't scale: when you read a paper or a manual, you need to know which frames the author chose, which axis points where, and which rotation is positive. The DH convention is a set of rules that pins all of this down.</p></div><p>The Denavit–Hartenberg convention is a procedural recipe: given a serial chain of joints, it tells you exactly where to put each frame and which direction each axis points. Following the recipe gives you a table of four numbers per joint — a, α, d, θ — that fully describes the geometry.</p></div></section><section class="lecture-section" id="rules"><h2>The four rules</h2><div class="prose"><ol><li><strong>Z-axis along joint axis.</strong> z<sub>i</sub> is aligned with the axis of joint i+1 — the axis the joint either rotates around (revolute) or translates along (prismatic).</li><li><strong>X-axis along common normal.</strong> x<sub>i</sub> is the common perpendicular between z<sub>i−1</sub> and z<sub>i</sub>, pointing from z<sub>i−1</sub> to z<sub>i</sub>. If the two z's intersect, x<sub>i</sub> = z<sub>i−1</sub> × z<sub>i</sub>.</li><li><strong>Origin at the intersection.</strong> Origin of frame i lies at the intersection of x<sub>i</sub> and z<sub>i</sub>.</li><li><strong>Y-axis by right-hand rule.</strong> y<sub>i</sub> = z<sub>i</sub> × x<sub>i</sub>.</li></ol></div><div class="callout"><div class="callout-title">The four parameters fall out automatically</div><p>Once frames are placed by these rules, the four DH parameters describe the relationship between consecutive frames: a<sub>i</sub> is the link length along x<sub>i</sub>; α<sub>i</sub> is the link twist around x<sub>i</sub>; d<sub>i</sub> is the link offset along z<sub>i−1</sub>; θ<sub>i</sub> is the joint angle around z<sub>i−1</sub>. For a revolute joint, θ is variable. For prismatic, d is variable.</p></div></section><section class="lecture-section" id="elementary"><h2>The elementary transform</h2><div class="prose"><p>Given the four parameters for joint i, the transform from frame i−1 to frame i is</p><div class="math-display" id="dh-formula"></div><p>This is the workhorse of the entire course. Every robot we have ever derived FK for compresses to a list of (a, α, d, θ) rows and a product of these elementary transforms.</p></div><figure class="widget"><header class="widget-header"><span class="widget-title">Sandbox · build a DH transform</span><span class="widget-tag">⌘/Ctrl + ⏎ to run</span></header><div class="widget-body"><div data-code-sandbox data-rows="9" data-initial="% Standard DH transform: T_i = Rz(theta) · Tz(d) · Tx(a) · Rx(alpha)
+% UR5 row 1: a=0, alpha=pi/2, d=0.089159, theta=q1=0
+a = 0; alpha = 90; d = 0.089159; theta = 0
+T = rotZ(theta) * transl(0, 0, d) * transl(a, 0, 0) * rotX(alpha)
+% Pack as 4x4 with the rotation block extracted:
+homog(eye(3), [0; 0; 0])"></div></div></figure></section><section class="lecture-section" id="side-by-side"><h2>Same robot, two valid frame choices</h2><div class="prose"><p>The convention is strict but not unique — there are still some choices to make (e.g., the direction of x<sub>0</sub> when there's no z<sub>−1</sub>). Two engineers can produce different DH tables for the same robot if they make different but valid choices. The end-effector pose is identical; the intermediate frames differ.</p></div><figure class="widget"><header class="widget-header"><span class="widget-title">UR5 — one DH choice</span><span class="widget-tag">Robot viewer</span></header><div class="widget-body"><div data-robot-viewer data-robot="UR5" data-show-frames="true"></div></div></figure></section><section class="lecture-section" id="recap"><h2>Quick recap</h2><div class="prose"><ul><li>Four rules to assign frames; four parameters per joint to describe transitions.</li><li>Each row of a DH table contributes a single elementary 4×4 transform; FK is their product.</li><li>The convention is a coordination standard: it lets two engineers describe the same robot with the same numbers.</li><li>Two valid DH tables can describe the same robot — only the end-effector matrix is invariant.</li></ul></div></section><section class="lecture-section" id="homework">
+<div class="homework"><div class="homework-eyebrow">Homework 10 · due before next session</div>
+<h3>Build a DH table from scratch</h3><ol><li>Sketch the SCARA Cobra. Apply the four DH rules to assign frames 0–4. Write out the resulting (a, α, d, θ) table.</li><li>Compute T<sub>4</sub><sup>0</sup>(q) symbolically and confirm — at q_home — that the end-effector position matches what the widget shows.</li><li>Do the same for the UR5's first three joints. Compare your DH table against the one in <code>ROBOTS.UR5</code>. Where you differ, justify why your choice is also valid.</li></ol>
+<div class="homework-deliverables"><div class="deliverable"><div class="deliverable-num">Deliverable 1</div><div class="deliverable-name">By-hand sketch</div><div class="deliverable-desc">Frame assignments on a sketch of each robot, plus the DH tables.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 2</div><div class="deliverable-name">Code</div><div class="deliverable-desc">A function <code>build_dh_chain(table)</code> that takes a list of (a, α, d, θ) rows and returns FK.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 3</div><div class="deliverable-name">60-second video</div><div class="deliverable-desc">Walk through your UR5 frame choices. Identify any place you made a different choice from the manufacturer table — and explain that both are valid.</div></div></div></div></section>
+    <nav class="lecture-footer-nav">
+      <a href="09-ur5.html"><span class="label">← Previous</span><span class="lec-title">Lecture 09 · UR5</span></a>
+      <a href="11-jacobian.html" class="next"><span class="label">Next →</span><span class="lec-title">Lecture 11 · Jacobian</span></a>
+    </nav>
+  </main>
+  <aside class="lecture-side">
+    <div class="lecture-side-title">In this lecture</div>
+    <ol class="lecture-toc"><li><a href="#motivation">Why convention</a></li><li><a href="#rules">Four rules</a></li><li><a href="#elementary">Elementary T</a></li><li><a href="#side-by-side">Frame choices</a></li><li><a href="#recap">Recap</a></li><li><a href="#homework">Homework</a></li></ol>
+  </aside></article>
+  <footer class="site-footer">Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a></footer>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [["dh-formula", "T_i^{i-1} = R_z(\\theta_i) \\cdot T_z(d_i) \\cdot T_x(a_i) \\cdot R_x(\\alpha_i)"]];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+  <script type="module">
+    import { mountRobotViewer } from '../js/widgets/robot-viewer.js';
+    document.querySelectorAll('[data-robot-viewer]').forEach(mountRobotViewer);
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 05 · Rigid-body motion: a reusable box function</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand">
+        <span class="brand-mark">R</span>
+        Kinematics &amp; Dynamics of Robot Manipulators
+      </a>
+      <div class="topnav-links">
+        <a href="../index.html#syllabus">Syllabus</a>
+        <a href="../index.html#about">About</a>
+      </div>
+    </div>
+  </nav>
+
+  <article class="lecture">
+    <main class="lecture-main">
+
+      <header class="lecture-header">
+        <div class="lecture-eyebrow">Lecture 05 · Module 2</div>
+        <h1 class="lecture-title">Rigid-body motion — a reusable box function</h1>
+        <p class="lecture-subtitle">
+          Apply T to an actual rigid body, not just a frame. Watch a simple cube translate, rotate, and
+          chain through composite transforms — the same primitive we'll lift into every robot link in
+          the rest of the module.
+        </p>
+      </header>
+
+      <section class="lecture-section" id="why">
+        <h2>Why we need to move objects, not just frames</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>So far T has been an abstract machine that moves frames around. The point of all this is to move <em>things</em> — links, tools, payloads. Every link in a robot is a rigid body, and the link's pose is just T applied to its body coordinates.</p>
+          </div>
+          <p>
+            Up to here we've described the pose of one frame relative to another. The reason we cared about the
+            frame is that <strong>everything attached to it</strong> moves with it. A link of a robot is a rigid
+            body — a set of points whose mutual distances never change. To draw the link, we describe a few of
+            its corner points <em>in the link's own frame</em>, and then transform those points into the world
+            using T.
+          </p>
+          <p>
+            That's the whole pattern: define a body once in its local coordinates, define T to place that body
+            in the world, multiply. Repeat for every link of every robot, every joint of every chain. This
+            lecture builds the smallest version of that pattern — a single cube — so the move from
+            cube → link → robot in the next lecture has nothing new in it.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="define">
+        <h2>Defining a rigid body in its own frame</h2>
+        <div class="prose">
+          <p>
+            A unit cube has eight vertices. In the cube's body frame they sit at the eight combinations of
+            (±0.5, ±0.5, ±0.5). Twelve edges connect them. To draw the cube anywhere in the world, all we have
+            to do is multiply each of those eight body-frame points by the same T, then redraw the edges
+            between the transformed corners.
+          </p>
+          <p>
+            The widget below has a unit cube in its body frame. The six sliders drive a homogeneous transform
+            T (three rotations, three translations). The cube is rendered using T applied to its eight vertices.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">A cube under T</span>
+            <span class="widget-tag">Rigid body</span>
+          </header>
+          <div class="widget-body">
+            <div data-transform-viewer
+                 data-axes="x,y,z"
+                 data-translate-axes="x,y,z"
+                 data-initial-r="20,15,30"
+                 data-initial-t="0.6,0.4,0.2"
+                 data-tracked-point="0.5,0.5,0.5"></div>
+          </div>
+        </figure>
+
+        <div class="callout">
+          <div class="callout-title">The tracked point is one corner of the cube</div>
+          <p>
+            The blue dot in the widget is the corner of the cube at (0.5, 0.5, 0.5) in body coordinates. As you
+            move the sliders, watch the corner's <em>fixed-frame</em> coordinates update in the readout. Every
+            other corner of the cube moves the same way — body-frame coordinates fixed forever, world-frame
+            coordinates determined by T.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="composing">
+        <h2>Translate-then-rotate, again — but on a real body</h2>
+        <div class="prose">
+          <p>
+            Module 1 closed with the observation that translate-then-rotate doesn't equal rotate-then-translate.
+            The same statement now has a concrete meaning: applying the two compositions to a cube places the cube
+            at two visibly different poses, even though both T matrices were built from the same six numbers.
+          </p>
+          <p>
+            Use the sandbox to compute both compositions and inspect the resulting matrices side by side. The
+            difference is entirely in the right column — the translation block — but it's enough to put the cube
+            in two different parts of the workspace.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Sandbox · two compositions of the same six numbers</span>
+            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="11"
+                 data-initial="% Same translation, same rotation, two different orders.
+% Watch the right column of the resulting T.
+
+% Rotate first, then translate (translation is in WORLD coords).
+T1 = transl(1, 0, 0) * homog(rotZ(90), [0; 0; 0])
+
+% Translate first, then rotate (the translation is rotated with the body).
+T2 = homog(rotZ(90), [0; 0; 0]) * transl(1, 0, 0)
+
+% Difference in the translation column.
+T1 - T2"></div>
+          </div>
+        </figure>
+
+        <div class="prose">
+          <p>
+            The two right columns differ; the rotation blocks are identical. The take-away — write down the order
+            of operations explicitly when you compose, and pick the convention that matches the physical
+            interpretation you want. For robot kinematics we'll always want "rotate the link first, then push it
+            along the rotated axis" — which is the right side of the multiplication, i.e., post-multiplication.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="towards-robots">
+        <h2>Where this is heading</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>The next lecture introduces the simplest possible robot — three prismatic joints — and you'll see that the way it moves is exactly this same operation, applied three times in series. Each joint is a small T; the end-effector is the product of all the small Ts; and you already know how to read a 4×4 transform off a slider. We're not learning anything new in Lecture 06. We're just using what we have on a longer chain.</p>
+          </div>
+          <p>
+            Each link of a robot is a rigid body. Each joint contributes a single elementary T that depends on
+            one joint variable q<sub>i</sub>. Forward kinematics is just the product of those Ts:
+          </p>
+        </div>
+
+        <div class="math-display" id="fk-formula"></div>
+
+        <div class="prose">
+          <p>
+            The cube you just dragged around in the first widget is one link. The robot in the next lecture
+            has three. The same machinery — define geometry in body frame, multiply by T, render — does both.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="recap">
+        <h2>Quick recap</h2>
+        <div class="prose">
+          <ul>
+            <li>Rigid-body geometry is defined once in the body's own frame; world geometry is recomputed by multiplying body coordinates by T.</li>
+            <li>For a cube, that means transforming 8 corners and redrawing 12 edges. The principle scales identically to a robot link.</li>
+            <li>Composition order matters at the rigid-body level just as it did at the frame level — same six numbers, different cube poses.</li>
+            <li>Forward kinematics is the natural extension: T_n = T_1 · T_2 · … · T_n, with each T_i contributing one joint variable.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="homework">
+        <div class="homework">
+          <div class="homework-eyebrow">Homework 05 · due before next session</div>
+          <h3>Build your own box function</h3>
+          <ol>
+            <li>By hand: write the eight vertex coordinates of a unit cube centred at the origin in its body frame. Pick T = R<sub>z</sub>(45°) · T<sub>tr</sub>(0.5, 0, 0). Compute the world-frame coordinates of each vertex.</li>
+            <li>In MATLAB or the browser sandbox: write a function <code>draw_box(T)</code> that takes a 4×4 transform and plots the cube at that pose. Use it to render three different poses on the same axes.</li>
+            <li>Animate the cube along a sweep: 360° rotation around z while translating from (0, 0, 0) to (1, 0, 0). Use a <code>for</code> loop with 60 frames.</li>
+            <li>Modify the function to take a body-frame definition as input — i.e., pass the eight vertices in. Draw two different rigid bodies (a wide rectangle, a thin one) using the same function.</li>
+          </ol>
+          <div class="homework-deliverables">
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 1</div>
+              <div class="deliverable-name">By-hand sketch</div>
+              <div class="deliverable-desc">Eight world-frame coordinates computed symbolically, plus a sketch of where the cube ends up.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 2</div>
+              <div class="deliverable-name">Code</div>
+              <div class="deliverable-desc">The <code>draw_box</code> function plus the animation script.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 3</div>
+              <div class="deliverable-name">60-second video</div>
+              <div class="deliverable-desc">Show the animation. Explain why the same function can draw two different bodies — what's the body-frame coordinates argument doing.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <nav class="lecture-footer-nav">
+        <a href="04-inverse-of-a-transform.html">
+          <span class="label">← Previous</span>
+          <span class="lec-title">Lecture 04 · Inverse of a transform</span>
+        </a>
+        <a href="06-ppp-robot.html" class="next">
+          <span class="label">Next →</span>
+          <span class="lec-title">Lecture 06 · PPP robot</span>
+        </a>
+      </nav>
+    </main>
+
+    <aside class="lecture-side">
+      <div class="lecture-side-title">In this lecture</div>
+      <ol class="lecture-toc">
+        <li><a href="#why">Why move bodies</a></li>
+        <li><a href="#define">Define in body frame</a></li>
+        <li><a href="#composing">Two compositions</a></li>
+        <li><a href="#towards-robots">Toward robots</a></li>
+        <li><a href="#recap">Quick recap</a></li>
+        <li><a href="#homework">Homework</a></li>
+      </ol>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a>
+  </footer>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const el = document.getElementById('fk-formula');
+        if (el) window.katex.render(
+          'T_n^0(q_1, q_2, \\ldots, q_n) = T_1^0(q_1) \\cdot T_2^1(q_2) \\cdots T_n^{n-1}(q_n)',
+          el,
+          { displayMode: true, throwOnError: false }
+        );
+      };
+      wait();
+    });
+  </script>
+
+  <script type="module">
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    import { mountTransformViewer } from '../js/widgets/transform-viewer.js';
+
+    document.querySelectorAll('[data-transform-viewer]').forEach(mountTransformViewer);
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

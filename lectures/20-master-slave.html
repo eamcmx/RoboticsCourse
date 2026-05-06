@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 20 · Master–slave: two robots, one task</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand"><span class="brand-mark">R</span>Kinematics &amp; Dynamics of Robot Manipulators</a>
+      <div class="topnav-links"><a href="../index.html#syllabus">Syllabus</a><a href="../index.html#about">About</a></div>
+    </div>
+  </nav>
+  <article class="lecture"><main class="lecture-main">
+    <header class="lecture-header">
+      <div class="lecture-eyebrow">Lecture 20 · Module 4 — Final assignment</div>
+      <h1 class="lecture-title">Master–slave — the final assignment</h1>
+      <p class="lecture-subtitle">Robot A holds a plate with a trajectory drawn on its surface. You steer A with the joystick. Robot B compensates in real time so its end-effector keeps tracing the same line on the plate as A is manipulated. Everything from the term, in one system.</p>
+    </header>
+<section class="lecture-section" id="the-task"><h2>The task</h2><div class="prose"><div class="voice"><p>This integrates everything we've built. You've got a teach-pendant from Lecture 17 driving robot A. Robot A is holding a plate. The trajectory you want robot B to draw is fixed in the plate's frame — but the plate moves whenever you move A. So robot B has to use the chain from Lecture 19 to re-target itself, and the IK from Lecture 12 to actually move there. If you can solve this in two weeks I'll be impressed.</p></div><p>You've seen every piece needed for this. Here it goes together:</p><ul><li>An Arduino with two joysticks (Lecture 17) drives robot A in real time.</li><li>Robot A holds a plate rigidly at its end-effector. The plate has a target trajectory defined on its surface — say, a square or your initials.</li><li>Robot B has to draw that trajectory on the plate, no matter how A moves the plate around.</li><li>The chain T<sub>A</sub>·T<sub>plate</sub><sup>A</sup>·T<sub>via</sub><sup>plate</sup> from Lecture 19 turns plate-frame targets into world-frame targets for B.</li><li>B's IK from Lecture 12 turns those world-frame targets into joint values for B.</li><li>Both robots' poses are visualised in RoboDK using the API from Lecture 18.</li></ul></div></section><section class="lecture-section" id="architecture"><h2>System architecture</h2><div class="prose"><p>Three concurrent loops:</p><ol><li><strong>Joystick → A loop</strong> (50 Hz). Reads Arduino, integrates rates into joint targets for A, sends to RoboDK.</li><li><strong>A → plate-pose loop</strong> (50 Hz). Reads A's actual joint values from RoboDK, computes T<sub>A</sub>, then T<sub>plate</sub><sup>0</sup> = T<sub>A</sub>·T<sub>plate</sub><sup>A</sup>.</li><li><strong>Plate → B loop</strong> (50 Hz). For the current via-point in the trajectory, computes T<sub>via</sub><sup>0</sup> = T<sub>plate</sub><sup>0</sup>·T<sub>via</sub><sup>plate</sup>, runs IK warm-started from B's last solution, sends q<sub>B</sub> to RoboDK.</li></ol><p>In MATLAB the easiest implementation is a single 50-Hz timer that runs all three sequentially. Async is overkill for this loop rate.</p></div></section><section class="lecture-section" id="milestones"><h2>Suggested milestones</h2><div class="prose"><ol><li><strong>Day 1:</strong> Get the joystick driving robot A in RoboDK. Lecture 17 + 18 wired up.</li><li><strong>Day 2:</strong> Define a static plate trajectory (a square). Robot B traces it while A is held still. Lecture 15.</li><li><strong>Day 3:</strong> Wire up the plate-pose chain. Move A by hand; observe that B's targets in world frame move with the plate. Lecture 19.</li><li><strong>Day 4:</strong> Connect joystick → A → plate → B end-to-end. Move the joystick slowly and watch B compensate.</li><li><strong>Day 5:</strong> Tune for stability — add damping, handle unreachable regions, smooth the rate command.</li></ol></div></section><section class="lecture-section" id="hints"><h2>Specific hints</h2><div class="prose"><ul><li>Run RoboDK at the highest update rate it allows. The visual trace is your debugger.</li><li>Cache T<sub>plate</sub><sup>A</sup> once at startup — it's a constant.</li><li>Plot B's IK iteration count over time. Spikes indicate near-singularity; that's where to add damping.</li><li>If B can't reach a target, freeze instead of jumping. The ugliest failure mode is a violent re-orientation when B's solver flips branches.</li><li>Add a "kill switch" early. Mode toggle on the joystick goes to "hold" — both robots stop moving.</li></ul></div></section><section class="lecture-section" id="what-success-looks-like"><h2>What success looks like</h2><div class="prose"><p>You move the joystick slowly. Robot A rotates the plate in place. Robot B's end-effector continues to trace the same square on the plate's surface — visually it's as if B and the plate are rigidly coupled, even though they're two independent six-DOF arms.</p><p>If you tilt the plate aggressively, B will eventually fail to reach. That's expected. A graceful failure (B freezes, no joint flip, controller stays stable) is part of what we're grading.</p></div></section><section class="lecture-section" id="homework">
+<div class="homework"><div class="homework-eyebrow">Homework 20 · due before next session</div>
+<h3>The final assignment</h3><ol><li>Implement the system end-to-end as described above. Use RoboDK for the simulator, MATLAB or Python for the host loops, an Arduino for the joystick.</li><li>Document the architecture in a one-page diagram: data flow, update rates, code organisation.</li><li>Submit code in a GitHub repo plus a 5-minute screen-recorded demo.</li></ol>
+<div class="homework-deliverables"><div class="deliverable"><div class="deliverable-num">Deliverable 1</div><div class="deliverable-name">Architecture diagram</div><div class="deliverable-desc">Single page showing the three loops, the data passed between them, and the update rates. Include the chain T<sub>A</sub>·T<sub>plate</sub><sup>A</sup>·T<sub>via</sub><sup>plate</sup> labelled.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 2</div><div class="deliverable-name">Code</div><div class="deliverable-desc">Full source on GitHub. Must run end-to-end with RoboDK and (optionally) the Arduino. If hardware unavailable, simulate the joystick with two sliders.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 3</div><div class="deliverable-name">5-minute demo</div><div class="deliverable-desc">Recording showing the joystick moving, robot A re-orienting the plate, robot B tracking. Demonstrate at least one graceful failure when a target becomes unreachable.</div></div></div></div></section>
+    <nav class="lecture-footer-nav">
+      <a href="19-trajectories-on-moving-plate.html"><span class="label">← Previous</span><span class="lec-title">Lecture 19 · Moving plate</span></a>
+      <a href="21-wrap-up.html" class="next"><span class="label">Next →</span><span class="lec-title">Lecture 21 · Wrap-up</span></a>
+    </nav>
+  </main>
+  <aside class="lecture-side">
+    <div class="lecture-side-title">In this lecture</div>
+    <ol class="lecture-toc"><li><a href="#the-task">The task</a></li><li><a href="#architecture">Architecture</a></li><li><a href="#milestones">Milestones</a></li><li><a href="#hints">Hints</a></li><li><a href="#what-success-looks-like">Success</a></li><li><a href="#homework">Homework</a></li></ol>
+  </aside></article>
+  <footer class="site-footer">Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a></footer>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+  <script type="module">
+
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

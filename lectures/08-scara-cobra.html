@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 08 · SCARA — Adept Cobra S800</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand"><span class="brand-mark">R</span>Kinematics &amp; Dynamics of Robot Manipulators</a>
+      <div class="topnav-links"><a href="../index.html#syllabus">Syllabus</a><a href="../index.html#about">About</a></div>
+    </div>
+  </nav>
+  <article class="lecture"><main class="lecture-main">
+    <header class="lecture-header">
+      <div class="lecture-eyebrow">Lecture 08 · Module 2</div>
+      <h1 class="lecture-title">SCARA: Adept Cobra S800</h1>
+      <p class="lecture-subtitle">A real industrial four-axis arm. Two horizontal revolute joints reach in the plane; a vertical slide for z; a final wrist rotation for tool orientation. The geometry you'll see in every modern pick-and-place line.</p>
+    </header>
+<section class="lecture-section" id="intro"><h2>A real-world SCARA</h2><div class="prose"><div class="voice"><p>We have one of these on the lab bench. The geometry is the same as on every Adept Cobra — and very similar to other SCARA robots from Epson, Yaskawa, ABB. If you understand this one robot you can read the manuals of any of them.</p></div><p>SCARA stands for <em>Selective Compliance Articulated Robot Arm</em>. The compliance is selective because the arm is rigid in the vertical direction (the prismatic axis) and compliant in the horizontal plane (the two revolute joints can absorb side-loads via the encoders). This is the optimal geometry for vertical insertion tasks — placing a chip on a board, pressing a button, dropping a screw.</p></div></section><section class="lecture-section" id="play"><h2>Play with it</h2><div class="prose"><p>Four sliders: shoulder θ<sub>1</sub>, elbow θ<sub>2</sub>, vertical slide d<sub>3</sub>, tool rotation θ<sub>4</sub>. The reach is 800 mm — switch q<sub>3</sub> by 0.1 m to see the vertical travel.</p></div><figure class="widget"><header class="widget-header"><span class="widget-title">Adept Cobra S800</span><span class="widget-tag">Robot viewer</span></header><div class="widget-body"><div data-robot-viewer data-robot="CobraS800" data-show-frames="true"></div></div></figure></section><section class="lecture-section" id="reach"><h2>Reach and reachability</h2><div class="prose"><p>With shoulder length L₁ = 0.425 m and elbow length L₂ = 0.375 m, the planar reach varies between L₁ + L₂ = 0.800 m (arm fully extended) and |L₁ − L₂| = 0.050 m (arm folded). Anywhere in that annular region of the x–y plane is reachable.</p><div class="math-display" id="cobra-reach"></div><p>Vertical travel adds the third dimension: z spans (d₁ + q₃<sub>min</sub>) to (d₁ + q₃<sub>max</sub>). The full workspace is therefore an annular cylinder.</p></div><figure class="widget"><header class="widget-header"><span class="widget-title">Sandbox · reach an XY target</span><span class="widget-tag">⌘/Ctrl + ⏎ to run</span></header><div class="widget-body"><div data-code-sandbox data-rows="11" data-initial="% Closed-form 2-link planar IK for a SCARA shoulder/elbow.
+% Target: (x, y) = (0.5, 0.3).
+L1 = 0.425; L2 = 0.375
+x = 0.5; y = 0.3
+r2 = x^2 + y^2
+cos_theta2 = (r2 - L1^2 - L2^2) / (2 * L1 * L2)
+theta2 = acos(cos_theta2) * 180 / pi
+theta1 = (atan2(y, x) - atan2(L2 * sin(theta2 * pi / 180), L1 + L2 * cos_theta2)) * 180 / pi
+[theta1, theta2]"></div></div></figure></section><section class="lecture-section" id="recap"><h2>Quick recap</h2><div class="prose"><ul><li>SCARA = two horizontal revolute + one vertical prismatic + one tool rotation. Standard pick-and-place geometry.</li><li>Workspace is an annular cylinder. Inner radius = |L₁−L₂|; outer = L₁+L₂.</li><li>Closed-form IK exists for the 2-link planar shoulder/elbow part — the wrist and slide are decoupled.</li></ul></div></section><section class="lecture-section" id="homework">
+<div class="homework"><div class="homework-eyebrow">Homework 08 · due before next session</div>
+<h3>Drive the SCARA from a target pose</h3><ol><li>By hand: implement closed-form inverse kinematics for the SCARA shoulder/elbow given a target (x, y). Both elbow-up and elbow-down solutions.</li><li>In code: write <code>ik_cobra(p, theta4)</code> that takes a target position and a desired tool angle, returns four joint values.</li><li>Plot the reachable workspace by sampling 1000 random joint vectors uniformly in the joint limits and scatter-plotting the end-effector positions. Annotate the inner and outer radii.</li></ol>
+<div class="homework-deliverables"><div class="deliverable"><div class="deliverable-num">Deliverable 1</div><div class="deliverable-name">By-hand sketch</div><div class="deliverable-desc">The two-elbow-configuration derivation, with the law-of-cosines step explicit.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 2</div><div class="deliverable-name">Code</div><div class="deliverable-desc"><code>ik_cobra</code> tested on five poses, including one outside the workspace (should report unreachable).</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 3</div><div class="deliverable-name">60-second video</div><div class="deliverable-desc">Show the workspace plot. Explain the inner radius — why the SCARA can't reach close to its own column.</div></div></div></div></section>
+    <nav class="lecture-footer-nav">
+      <a href="07-rpp-and-gui.html"><span class="label">← Previous</span><span class="lec-title">Lecture 07 · RPP + GUI</span></a>
+      <a href="09-ur5.html" class="next"><span class="label">Next →</span><span class="lec-title">Lecture 09 · UR5</span></a>
+    </nav>
+  </main>
+  <aside class="lecture-side">
+    <div class="lecture-side-title">In this lecture</div>
+    <ol class="lecture-toc"><li><a href="#intro">Intro</a></li><li><a href="#play">Play</a></li><li><a href="#reach">Reach</a></li><li><a href="#recap">Recap</a></li><li><a href="#homework">Homework</a></li></ol>
+  </aside></article>
+  <footer class="site-footer">Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a></footer>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [["cobra-reach", "r_{\\text{outer}} = L_1 + L_2, \\quad r_{\\text{inner}} = |L_1 - L_2|"]];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+  <script type="module">
+    import { mountRobotViewer } from '../js/widgets/robot-viewer.js';
+    document.querySelectorAll('[data-robot-viewer]').forEach(mountRobotViewer);
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

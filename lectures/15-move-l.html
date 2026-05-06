@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 15 · move L — linear motion in task space</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand"><span class="brand-mark">R</span>Kinematics &amp; Dynamics of Robot Manipulators</a>
+      <div class="topnav-links"><a href="../index.html#syllabus">Syllabus</a><a href="../index.html#about">About</a></div>
+    </div>
+  </nav>
+  <article class="lecture"><main class="lecture-main">
+    <header class="lecture-header">
+      <div class="lecture-eyebrow">Lecture 15 · Module 4</div>
+      <h1 class="lecture-title">move L — straight lines in the workspace</h1>
+      <p class="lecture-subtitle">Move the end-effector along a straight 3D path between two poses. Discretise the path, solve IK at every via-point with a warm-start, animate. We build it from scratch so it stops being magic.</p>
+    </header>
+<section class="lecture-section" id="motivation"><h2>When the path matters</h2><div class="prose"><div class="voice"><p>Welding, gluing, cutting, drawing — anything where the work piece sees the end-effector's trajectory — requires move L. Pick two poses, ask for a straight line between them, and the controller finds the joint values at every step. The internals are exactly what you built in Lecture 12.</p></div><p>To follow a straight line in 3D, we discretise the line into via-points and solve IK at each. The previous waypoint's solution is the warm-start for the next — Lecture 12's setup applied repeatedly.</p></div></section><section class="lecture-section" id="algorithm"><h2>The algorithm</h2><div class="prose"><p>Given start pose T<sub>0</sub> and goal pose T<sub>1</sub> as 4×4 matrices, with N via-points:</p><ol><li>Interpolate position linearly: p(s) = (1−s)·p<sub>0</sub> + s·p<sub>1</sub>.</li><li>Interpolate orientation via SLERP (or for small rotations, linearly interpolate the rotation matrices and re-orthogonalise).</li><li>For each s ∈ {0, 1/N, 2/N, …, 1}, solve IK for the corresponding T(s), warm-started from the previous q.</li><li>Send the resulting q sequence to the motors at the controller's update rate.</li></ol><div class="math-display" id="movel-formula"></div></div><figure class="widget"><header class="widget-header"><span class="widget-title">Sandbox · move L on a 2-link arm</span><span class="widget-tag">⌘/Ctrl + ⏎ to run</span></header><div class="widget-body"><div data-code-sandbox data-rows="14" data-initial="% Move the end-effector in a straight line from (0.6, 0) to (0.4, 0.4)
+% on a 2-link planar arm. Solve IK warm-started at each waypoint.
+L1 = 0.5; L2 = 0.4
+p_start = [0.6, 0.0]
+p_end   = [0.4, 0.4]
+N = 10
+
+% First waypoint IK (closed-form 2-link)
+p = p_start
+r2 = p[1]^2 + p[2]^2
+cos_q2 = (r2 - L1^2 - L2^2) / (2 * L1 * L2)
+q2 = acos(cos_q2)
+q1 = atan2(p[2], p[1]) - atan2(L2 * sin(q2), L1 + L2 * cos_q2)
+[q1 * 180/pi, q2 * 180/pi]"></div></div></figure></section><section class="lecture-section" id="time-parameterisation"><h2>Time parameterisation</h2><div class="prose"><p>The waypoint sequence above is purely geometric — it doesn't say <em>when</em> the robot reaches each one. To turn the path into a trajectory, you assign a time profile s(t) ∈ [0, 1]. Common choices:</p><ul><li><strong>Linear in t</strong> — constant speed along the path.</li><li><strong>Trapezoidal velocity</strong> — accelerate, cruise, decelerate. Smooth at the endpoints, easy on the motors.</li><li><strong>S-curve</strong> — same with continuous acceleration. Smoother still; standard for high-precision tasks.</li></ul><p>The choice doesn't affect the path shape, only the velocity profile along it.</p></div></section><section class="lecture-section" id="recap"><h2>Quick recap</h2><div class="prose"><ul><li>move L = discretise the task-space line + IK at every via-point + warm-start chaining.</li><li>Position: linear interpolation. Orientation: SLERP.</li><li>Time profile (linear/trapezoidal/S-curve) is a separate concern from the geometric path.</li></ul></div></section><section class="lecture-section" id="homework">
+<div class="homework"><div class="homework-eyebrow">Homework 15 · due before next session</div>
+<h3>Build move L from scratch</h3><ol><li>Implement <code>moveL(T_start, T_goal, N, ik_fn)</code>. Use SLERP for orientation interpolation.</li><li>Apply it to the SCARA Cobra to draw a 0.2-m horizontal square in the x–y plane at z = 0.3.</li><li>Repeat with a trapezoidal velocity profile. Plot joint velocities vs. time; verify they're smooth at the corners (or note where they're not).</li></ol>
+<div class="homework-deliverables"><div class="deliverable"><div class="deliverable-num">Deliverable 1</div><div class="deliverable-name">By-hand sketch</div><div class="deliverable-desc">Sketch the discretisation: how many via-points are needed for a 1-mm path tolerance on a 200-mm segment?</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 2</div><div class="deliverable-name">Code</div><div class="deliverable-desc"><code>moveL</code> + square-tracing script + velocity profile.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 3</div><div class="deliverable-name">60-second video</div><div class="deliverable-desc">Show the SCARA tracing the square. Identify the joint that moves most at each corner.</div></div></div></div></section>
+    <nav class="lecture-footer-nav">
+      <a href="14-move-j.html"><span class="label">← Previous</span><span class="lec-title">Lecture 14 · move J</span></a>
+      <a href="16-move-c.html" class="next"><span class="label">Next →</span><span class="lec-title">Lecture 16 · move C</span></a>
+    </nav>
+  </main>
+  <aside class="lecture-side">
+    <div class="lecture-side-title">In this lecture</div>
+    <ol class="lecture-toc"><li><a href="#motivation">Motivation</a></li><li><a href="#algorithm">Algorithm</a></li><li><a href="#time-parameterisation">Timing</a></li><li><a href="#recap">Recap</a></li><li><a href="#homework">Homework</a></li></ol>
+  </aside></article>
+  <footer class="site-footer">Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a></footer>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [["movel-formula", "p(s) = (1 - s)\\, p_0 + s\\, p_1, \\quad R(s) = \\text{SLERP}(R_0, R_1, s)"]];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+  <script type="module">
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

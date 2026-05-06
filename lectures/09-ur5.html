@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 09 · Universal Robots UR5</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand"><span class="brand-mark">R</span>Kinematics &amp; Dynamics of Robot Manipulators</a>
+      <div class="topnav-links"><a href="../index.html#syllabus">Syllabus</a><a href="../index.html#about">About</a></div>
+    </div>
+  </nav>
+  <article class="lecture"><main class="lecture-main">
+    <header class="lecture-header">
+      <div class="lecture-eyebrow">Lecture 09 · Module 2</div>
+      <h1 class="lecture-title">Universal Robots UR5 — six revolute joints</h1>
+      <p class="lecture-subtitle">The first six-DOF robot in the course. Reach 850 mm, payload 5 kg, all revolute. The geometry that lets a single arm reach any pose in its workspace with any orientation.</p>
+    </header>
+<section class="lecture-section" id="intro"><h2>Six-DOF freedom</h2><div class="prose"><div class="voice"><p>A SCARA can reach any point in its annular workspace, but only with the wrist pointing down. A six-DOF arm like the UR5 can reach any reachable point with any orientation. The price is more joints, more variables, and an inverse-kinematics problem we can no longer solve by inspection.</p></div><p>The UR5 is one of the most widely deployed collaborative robots. Six revolute joints, all with continuous rotational travel, all electrically driven. The DH parameters below come straight from the manufacturer's manual.</p></div></section><section class="lecture-section" id="play"><h2>Play with it</h2><div class="prose"><p>Six sliders, six revolute joints. The home configuration is intentionally non-singular and away from joint limits — a good starting point. Try setting q₂ = 0 (shoulder horizontal) and watch the arm extend; that's a near-singular pose.</p></div><figure class="widget"><header class="widget-header"><span class="widget-title">UR5</span><span class="widget-tag">Robot viewer</span></header><div class="widget-body"><div data-robot-viewer data-robot="UR5" data-show-frames="true"></div></div></figure></section><section class="lecture-section" id="dh"><h2>Reading the DH table</h2><div class="prose"><p>The UR5 uses standard DH with these parameters (metres, radians):</p><pre class="matrix-display">  joint     a         alpha     d         theta
+    1     0         π/2     0.089159    q₁
+    2    -0.425      0       0           q₂
+    3    -0.39225    0       0           q₃
+    4     0         π/2     0.10915     q₄
+    5     0        -π/2     0.09465     q₅
+    6     0          0      0.0823      q₆</pre><p>The two long links — a₂ = −0.425 m and a₃ = −0.39225 m — are the upper arm and forearm. They sum to 81.7 cm, the nominal "reach" specification.</p></div></section><section class="lecture-section" id="fk-sandbox"><h2>Forward kinematics in code</h2><div class="prose"><p>The robot definition is loaded from <code>ROBOTS.UR5</code>. <code>forwardKinematics(q, robot)</code> walks the DH chain and returns the 4×4 end-effector pose. The widget above does this on every slider change.</p></div><figure class="widget"><header class="widget-header"><span class="widget-title">Sandbox · UR5 home pose</span><span class="widget-tag">⌘/Ctrl + ⏎ to run</span></header><div class="widget-body"><div data-code-sandbox data-rows="9" data-initial="% UR5 home pose: q = [0, -π/2, π/2, -π/2, -π/2, 0]
+% Build T_ee directly using rotZ/rotX and transl, then check.
+q = [0, -pi/2, pi/2, -pi/2, -pi/2, 0]
+
+% First link: rotate q1 around z, lift d1 along z, twist α1 = π/2 around x
+T1 = homog(rotZ(0) * rotX(90), [0; 0; 0.089159])
+% (etc — full chain in your homework)
+% Position from the widget should be (-0.487, -0.109, 0.432)
+[-0.487, -0.109, 0.432]"></div></div></figure></section><section class="lecture-section" id="recap"><h2>Quick recap</h2><div class="prose"><ul><li>UR5: 6R, reach 850 mm, all-revolute. The reference robot for the rest of the course.</li><li>DH parameters from the UR manual; standard form. Six rows, four parameters each.</li><li>Forward kinematics by composing six elementary T<sub>i</sub><sup>i−1</sup>. The widget you used does this on every slider change.</li></ul></div></section><section class="lecture-section" id="homework">
+<div class="homework"><div class="homework-eyebrow">Homework 09 · due before next session</div>
+<h3>UR5 forward kinematics + workspace</h3><ol><li>By hand: write the symbolic forward kinematics T<sub>6</sub><sup>0</sup>(q₁, …, q₆) by composing the six DH transforms. Verify the position column matches the widget at the home pose.</li><li>In code: implement <code>fk_UR5(q)</code> using the same DH chain. Test against three poses (home, all-zeros, and (π/4)·ones).</li><li>Sample 5000 random joint vectors and scatter-plot the end-effector positions. Note how the workspace fills a torus-like shell rather than a solid sphere.</li></ol>
+<div class="homework-deliverables"><div class="deliverable"><div class="deliverable-num">Deliverable 1</div><div class="deliverable-name">By-hand sketch</div><div class="deliverable-desc">The composed FK derivation, at minimum the position column.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 2</div><div class="deliverable-name">Code</div><div class="deliverable-desc"><code>fk_UR5</code> with a verification script that checks against the widget.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 3</div><div class="deliverable-name">60-second video</div><div class="deliverable-desc">Show the workspace plot. Explain why the centre of the workspace is empty — what configurations would be needed to reach there?</div></div></div></div></section>
+    <nav class="lecture-footer-nav">
+      <a href="08-scara-cobra.html"><span class="label">← Previous</span><span class="lec-title">Lecture 08 · SCARA Cobra</span></a>
+      <a href="10-dh-convention.html" class="next"><span class="label">Next →</span><span class="lec-title">Lecture 10 · DH convention</span></a>
+    </nav>
+  </main>
+  <aside class="lecture-side">
+    <div class="lecture-side-title">In this lecture</div>
+    <ol class="lecture-toc"><li><a href="#intro">Intro</a></li><li><a href="#play">Play</a></li><li><a href="#dh">DH table</a></li><li><a href="#fk-sandbox">FK in code</a></li><li><a href="#recap">Recap</a></li><li><a href="#homework">Homework</a></li></ol>
+  </aside></article>
+  <footer class="site-footer">Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a></footer>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+  <script type="module">
+    import { mountRobotViewer } from '../js/widgets/robot-viewer.js';
+    document.querySelectorAll('[data-robot-viewer]').forEach(mountRobotViewer);
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

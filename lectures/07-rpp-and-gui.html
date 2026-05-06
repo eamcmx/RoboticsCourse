@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 07 · RPP robot and the GUI</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand"><span class="brand-mark">R</span>Kinematics &amp; Dynamics of Robot Manipulators</a>
+      <div class="topnav-links"><a href="../index.html#syllabus">Syllabus</a><a href="../index.html#about">About</a></div>
+    </div>
+  </nav>
+  <article class="lecture"><main class="lecture-main">
+    <header class="lecture-header">
+      <div class="lecture-eyebrow">Lecture 07 · Module 2</div>
+      <h1 class="lecture-title">RPP robot — and a graphical interface to drive it</h1>
+      <p class="lecture-subtitle">A revolute base, two prismatic slides. The first robot whose joint values aren't the same as world coordinates. We also build the slider GUI pattern that every later lecture reuses.</p>
+    </header>
+<section class="lecture-section" id="anatomy"><h2>Anatomy</h2><div class="prose"><div class="voice"><p>A revolute joint at the base, then a vertical slide, then a horizontal extension. This is the kinematic skeleton of every cylindrical-coordinate robot ever built — most factory pick-and-place arms reduce to this shape with a wrist on top.</p></div><p>The RPP arm has three joints: q<sub>1</sub> rotates the column (revolute), q<sub>2</sub> moves vertically (prismatic), q<sub>3</sub> extends radially (prismatic). Unlike the PPP, the joint variables and world coordinates are no longer the same — the arm reaches a cylindrical workspace, not a Cartesian one.</p></div></section><section class="lecture-section" id="play"><h2>Play with it</h2><div class="prose"><p>Drag q<sub>1</sub> to swing the column, q<sub>2</sub> for the vertical slide, q<sub>3</sub> for the horizontal extension. Watch the end-effector position update.</p></div><figure class="widget"><header class="widget-header"><span class="widget-title">RPP robot</span><span class="widget-tag">Robot viewer</span></header><div class="widget-body"><div data-robot-viewer data-robot="RPP" data-show-frames="true"></div></div></figure></section><section class="lecture-section" id="cylindrical"><h2>Why the workspace is a cylinder</h2><div class="prose"><p>Hold q<sub>2</sub> and q<sub>3</sub> constant and sweep q<sub>1</sub> through ±π. The end-effector traces a circle. Vary q<sub>2</sub> — the circle moves up and down. Vary q<sub>3</sub> — the radius grows. The set of reachable points is a cylindrical shell, not a box.</p><div class="math-display" id="rpp-position"></div><p>Position in cylindrical coordinates: radius = q<sub>3</sub>, angle = q<sub>1</sub>, height = base + q<sub>2</sub>. The conversion to Cartesian is exactly the polar formula.</p></div></section><section class="lecture-section" id="gui"><h2>Building the slider GUI</h2><div class="prose"><div class="voice"><p>Once you have a forward-kinematics function, the easiest way to debug it is to wrap it in a GUI with one slider per joint. In MATLAB the pattern is just `uislider`. In a browser it's an HTML range input. The widget you're looking at is exactly that — a thin layer around a slider element that calls back into the FK function on every change.</p></div><p>The robot-viewer widget on this page is roughly 250 lines of JavaScript wrapping the same FK function we built in Lecture 06. The MATLAB equivalent is even shorter — the language has slider widgets built in. The key insight: the GUI is the cheap part; the FK is the load-bearing part.</p></div><figure class="widget"><header class="widget-header"><span class="widget-title">Sandbox · check FK against the slider</span><span class="widget-tag">⌘/Ctrl + ⏎ to run</span></header><div class="widget-body"><div data-code-sandbox data-rows="9" data-initial="% Compose RPP forward kinematics by hand and verify against ROBOTS.RPP.
+% q = [pi/4, 0.3, 0.2] — column at 45°, slide up 0.3, extend 0.2.
+q1 = pi/4; q2 = 0.3; q3 = 0.2
+
+% After applying all three DH transforms, the end-effector position should be:
+%   x = q3 * sin(q1),  y = -q3 * cos(q1),  z = base_height + q2
+[q3 * sin(q1), -q3 * cos(q1), 0.2 + q2]"></div></div></figure></section><section class="lecture-section" id="recap"><h2>Quick recap</h2><div class="prose"><ul><li>RPP joints: revolute base, vertical slide, horizontal extension. Cylindrical workspace.</li><li>Joint variables ≠ world coordinates here. The conversion is the polar formula.</li><li>The slider GUI pattern is just one input range per joint, calling FK on each change. Reused unchanged in every later robot.</li></ul></div></section><section class="lecture-section" id="homework">
+<div class="homework"><div class="homework-eyebrow">Homework 07 · due before next session</div>
+<h3>Cylindrical workspace, by hand and by code</h3><ol><li>By hand: derive the world-frame position of the RPP end-effector from the DH parameters. Confirm it equals (q₃·sin q₁, −q₃·cos q₁, 0.2 + q₂) under our convention.</li><li>In code: implement <code>fk_RPP(q)</code> in MATLAB. Test against three poses you can verify by inspection.</li><li>Plot the RPP's reachable workspace. Sample 30 values of q₁ ∈ [−π, π], 10 values of q₂ and q₃ across their ranges; scatter the end-effector positions. The result should look like a cylindrical shell.</li></ol>
+<div class="homework-deliverables"><div class="deliverable"><div class="deliverable-num">Deliverable 1</div><div class="deliverable-name">By-hand sketch</div><div class="deliverable-desc">Symbolic derivation of the position formula and a sketch of the workspace cylinder.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 2</div><div class="deliverable-name">Code</div><div class="deliverable-desc"><code>fk_RPP</code> + the workspace scatter plot.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 3</div><div class="deliverable-name">60-second video</div><div class="deliverable-desc">Show the workspace plot. Explain why the shape is a cylinder rather than a sphere — what limits each dimension?</div></div></div></div></section>
+    <nav class="lecture-footer-nav">
+      <a href="06-ppp-robot.html"><span class="label">← Previous</span><span class="lec-title">Lecture 06 · PPP robot</span></a>
+      <a href="08-scara-cobra.html" class="next"><span class="label">Next →</span><span class="lec-title">Lecture 08 · SCARA Cobra</span></a>
+    </nav>
+  </main>
+  <aside class="lecture-side">
+    <div class="lecture-side-title">In this lecture</div>
+    <ol class="lecture-toc"><li><a href="#anatomy">Anatomy</a></li><li><a href="#play">Play</a></li><li><a href="#cylindrical">Cylindrical workspace</a></li><li><a href="#gui">GUI pattern</a></li><li><a href="#recap">Recap</a></li><li><a href="#homework">Homework</a></li></ol>
+  </aside></article>
+  <footer class="site-footer">Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a></footer>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [["rpp-position", "p_{\\text{ee}} = \\begin{pmatrix} q_3 \\sin q_1 \\\\ -q_3 \\cos q_1 \\\\ d_1 + q_2 \\end{pmatrix}"]];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+  <script type="module">
+    import { mountRobotViewer } from '../js/widgets/robot-viewer.js';
+    document.querySelectorAll('[data-robot-viewer]').forEach(mountRobotViewer);
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

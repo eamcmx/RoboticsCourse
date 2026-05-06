@@ -135,6 +135,28 @@ export const MATRIX_DEFS = {
     ],
   },
 
+  // Lecture 11 — the Jacobian for a 2-link planar arm (2×2)
+
+  jacobian_2link: {
+    title: "Jacobian of the 2-link planar arm — J(q)",
+    intro: "Position is p(q) = (L₁ cos q₁ + L₂ cos(q₁+q₂), L₁ sin q₁ + L₂ sin(q₁+q₂)). The Jacobian collects ∂p/∂q in a 2×2. Click each cell to fill in the partial derivative.",
+    cols: 2,
+    cells: [
+      { value: "−L₁ sin q₁ − L₂ sin(q₁+q₂)",
+        prompt: "Row 1, column 1: ∂x/∂q₁. Differentiate L₁ cos q₁ + L₂ cos(q₁+q₂) with respect to q₁.",
+        reveal: "∂x/∂q₁ = −L₁ sin q₁ − L₂ sin(q₁+q₂). Both terms depend on q₁, so both contribute." },
+      { value: "−L₂ sin(q₁+q₂)",
+        prompt: "Row 1, column 2: ∂x/∂q₂. Only the second term depends on q₂.",
+        reveal: "∂x/∂q₂ = −L₂ sin(q₁+q₂). The L₁ cos q₁ term has no q₂ inside, so it drops out." },
+      { value: "L₁ cos q₁ + L₂ cos(q₁+q₂)",
+        prompt: "Row 2, column 1: ∂y/∂q₁. Differentiate L₁ sin q₁ + L₂ sin(q₁+q₂) with respect to q₁.",
+        reveal: "∂y/∂q₁ = L₁ cos q₁ + L₂ cos(q₁+q₂)." },
+      { value: "L₂ cos(q₁+q₂)",
+        prompt: "Row 2, column 2: ∂y/∂q₂.",
+        reveal: "∂y/∂q₂ = L₂ cos(q₁+q₂). Now expand the determinant by hand and watch what happens." },
+    ],
+  },
+
   // Lecture 04 — inverse of a homogeneous transform
 
   homog_inverse: {
@@ -187,7 +209,8 @@ export function mountMatrixStepper(host, def) {
   grid.className = "stepper-grid";
   if (cols !== 3) {
     grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    grid.style.maxWidth = cols === 4 ? "480px" : "380px";
+    grid.style.maxWidth = cols === 4 ? "480px" : (cols === 2 ? "560px" : "380px");
+    if (cols === 2) grid.classList.add("stepper-grid--wide");
   }
   const cells = def.cells.map((cell, i) => {
     const el = document.createElement("button");

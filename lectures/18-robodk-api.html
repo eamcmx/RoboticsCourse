@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 18 · RoboDK API — driving the simulator from code</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand"><span class="brand-mark">R</span>Kinematics &amp; Dynamics of Robot Manipulators</a>
+      <div class="topnav-links"><a href="../index.html#syllabus">Syllabus</a><a href="../index.html#about">About</a></div>
+    </div>
+  </nav>
+  <article class="lecture"><main class="lecture-main">
+    <header class="lecture-header">
+      <div class="lecture-eyebrow">Lecture 18 · Module 4</div>
+      <h1 class="lecture-title">RoboDK API — MATLAB ↔ simulator</h1>
+      <p class="lecture-subtitle">Connect your code to the simulated robot. Send joint targets and end-effector poses; read back the actual values; close the loop between your IK solver and a moving 3D arm.</p>
+    </header>
+<section class="lecture-section" id="intro"><h2>Why a simulator</h2><div class="prose"><div class="voice"><p>Before wiring up €40k of real robot, you debug everything against a simulator. Same DH parameters, same controller behaviour, but no physical risk and no factory time slot. RoboDK is the one we use because it has a clean API and ships with most industrial robot models pre-built.</p></div><p>RoboDK is a lightweight industrial-robot simulator with APIs for MATLAB, Python, and C++. The Cobra, the UR5, the ABB IRB4400 — all of them — ship with the install, complete with their DH parameters and joint limits. You write code as if it were going to a real robot; you point the API at the simulator instead.</p></div></section><section class="lecture-section" id="connect"><h2>Connecting from MATLAB</h2><div class="prose"><p>Three lines of MATLAB connect to a running RoboDK instance and grab a robot handle:</p><pre class="matrix-display">rdk = Robolink();
+robot = rdk.Item('UR5');
+robot.setJoints([0, -90, 90, -90, -90, 0]);  % degrees</pre><p>The first call opens the API; the second finds the named robot in the loaded scene; the third drives it. Joint values are degrees by default for revolute, metres for prismatic.</p></div></section><section class="lecture-section" id="useful"><h2>The useful API surface</h2><div class="prose"><ul><li><code>setJoints(q)</code> — drive the robot to a joint vector.</li><li><code>getJoints()</code> — read current joint values.</li><li><code>setPose(T)</code> — drive the end-effector to a 4×4 pose. RoboDK runs IK internally.</li><li><code>getPose()</code> — read end-effector pose as 4×4.</li><li><code>moveL(T)</code>, <code>moveJ(T)</code> — built-in trajectory primitives.</li></ul><p>That's essentially everything we need for the rest of Module 4.</p></div><figure class="widget"><header class="widget-header"><span class="widget-title">Sandbox · pseudo-code for a closed-loop tick</span><span class="widget-tag">⌘/Ctrl + ⏎ to run</span></header><div class="widget-body"><div data-code-sandbox data-rows="13" data-initial="% Pseudocode for an MATLAB ↔ RoboDK closed-loop tick.
+% (Real version uses Robolink/Item objects; this sandbox just shows the math.)
+
+% Read current end-effector pose from RoboDK.
+T_current = homog(rotZ(15), [0.5; 0.2; 0.3])
+
+% Compute desired pose (e.g. 5 cm forward in tool frame).
+T_step = transl(0.05, 0, 0)
+T_target = T_current * T_step
+
+% Send T_target to the simulator. (RoboDK runs IK internally.)
+T_target"></div></div></figure></section><section class="lecture-section" id="recap"><h2>Quick recap</h2><div class="prose"><ul><li>RoboDK is a free industrial-robot simulator with MATLAB/Python APIs.</li><li>API is small: setJoints, getJoints, setPose, getPose, moveJ, moveL.</li><li>Develop against the simulator, deploy unchanged to the real controller.</li></ul></div></section><section class="lecture-section" id="homework">
+<div class="homework"><div class="homework-eyebrow">Homework 18 · due before next session</div>
+<h3>Connect and drive</h3><ol><li>Install RoboDK. Load the UR5 model.</li><li>Write a MATLAB script that connects via the API, reads the current joints, prints them, sends a new pose, reads back the actual joints (which may differ if the requested pose is unreachable).</li><li>Replicate Lecture 14's move J script, but driving the actual simulator instead of a static plot.</li></ol>
+<div class="homework-deliverables"><div class="deliverable"><div class="deliverable-num">Deliverable 1</div><div class="deliverable-name">By-hand sketch</div><div class="deliverable-desc">A flowchart of the host ↔ simulator data flow for one closed-loop tick.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 2</div><div class="deliverable-name">Code</div><div class="deliverable-desc">The connect/drive script + the simulator-driven move J.</div></div><div class="deliverable"><div class="deliverable-num">Deliverable 3</div><div class="deliverable-name">60-second video</div><div class="deliverable-desc">Screen-recording of the simulator robot moving under your script.</div></div></div></div></section>
+    <nav class="lecture-footer-nav">
+      <a href="17-arduino-teach-pendant.html"><span class="label">← Previous</span><span class="lec-title">Lecture 17 · Arduino teach-pendant</span></a>
+      <a href="19-trajectories-on-moving-plate.html" class="next"><span class="label">Next →</span><span class="lec-title">Lecture 19 · Moving plate</span></a>
+    </nav>
+  </main>
+  <aside class="lecture-side">
+    <div class="lecture-side-title">In this lecture</div>
+    <ol class="lecture-toc"><li><a href="#intro">Why simulator</a></li><li><a href="#connect">Connecting</a></li><li><a href="#useful">Useful API</a></li><li><a href="#recap">Recap</a></li><li><a href="#homework">Homework</a></li></ol>
+  </aside></article>
+  <footer class="site-footer">Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a></footer>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+  <script type="module">
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>
