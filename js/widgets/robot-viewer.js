@@ -158,6 +158,7 @@ export function mountRobotViewer(host) {
   // Fit the camera to the robot's reach.
   const reach = Math.max(...robot.dh.a.map(Math.abs), ...robot.dh.d.map(Math.abs)) * robot.n + 0.5;
   camera.position.set(reach * 0.9, reach * 0.7, reach * 1.1);
+  camera.up.set(0, 0, 1);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -174,6 +175,7 @@ export function mountRobotViewer(host) {
 
   // Floor
   const grid = new THREE.GridHelper(reach * 4, 32, 0xc8c2b4, 0xddd6c4);
+  grid.rotation.x = Math.PI / 2;
   scene.add(grid);
 
   // Lighting (for the meshes — links and joint spheres are MeshBasic so
@@ -236,7 +238,7 @@ export function mountRobotViewer(host) {
   orbit.dampingFactor = 0.1;
   orbit.minDistance = 0.5;
   orbit.maxDistance = 30;
-  orbit.target.set(0, reach * 0.25, 0);
+  orbit.target.set(0, 0, reach * 0.25);
 
   // Storage for output elements
   const matrixOut = eeWrap.querySelector('[data-T]');

@@ -1157,6 +1157,71 @@ input[type="range"]::-moz-range-thumb {
   line-height: 1.35;
 }
 
+/* ----- dynamic-comparison (L22 twin-arm widget) ----- */
+.dynamic-comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+.dynamic-comparison-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.dynamic-comparison-canvas svg {
+  width: 100%;
+  height: auto;
+  background: #fcfdfe;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: block;
+}
+.dynamic-comparison-canvas .dc-plot {
+  background: #fbfcfd;
+}
+.dynamic-comparison-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  min-width: 0;
+}
+.dc-error-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.dc-err-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.dc-err-label {
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+.dc-err-row .mono {
+  font-family: var(--font-mono);
+  color: var(--ink);
+  font-weight: 600;
+}
+.dc-hint {
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+  font-style: italic;
+  line-height: 1.4;
+  padding: 8px 10px;
+  background: var(--bg-sunken);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
 /* ----- small utility ----- */
 .sr-only {
   position: absolute;

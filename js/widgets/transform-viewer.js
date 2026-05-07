@@ -267,7 +267,7 @@ export function mountTransformViewer(host) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
   camera.position.set(3, 2.4, 3.4);
-
+  camera.up.set(0, 0, 1);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   canvasWrap.appendChild(renderer.domElement);
@@ -282,6 +282,7 @@ export function mountTransformViewer(host) {
   ro.observe(canvasWrap);
 
   const grid = new THREE.GridHelper(6, 24, 0xc8c2b4, 0xddd6c4);
+  grid.rotation.x = Math.PI / 2;
   scene.add(grid);
 
   const fixedFrame = makeFrame(['x', 'y', 'z'], [COLOR.x, COLOR.y, COLOR.z], 1.0);

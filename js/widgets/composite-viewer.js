@@ -166,7 +166,7 @@ export function mountCompositeViewer(host) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
   camera.position.set(2.6, 2.2, 3.0);
-
+  camera.up.set(0, 0, 1);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   canvasWrap.appendChild(renderer.domElement);
@@ -180,7 +180,7 @@ export function mountCompositeViewer(host) {
   });
   ro.observe(canvasWrap);
 
-  scene.add(new THREE.GridHelper(6, 24, 0xc8c2b4, 0xddd6c4));
+  { const g = new THREE.GridHelper(6, 24, 0xc8c2b4, 0xddd6c4); g.rotation.x = Math.PI / 2; scene.add(g); }
   const fixedFrame = makeFrame(['X', 'Y', 'Z'], [COLOR.x, COLOR.y, COLOR.z], 1.0);
   scene.add(fixedFrame);
   const mobileFrame = makeFrame(['U', 'V', 'W'], [COLOR.u, COLOR.v, COLOR.w], 0.95);

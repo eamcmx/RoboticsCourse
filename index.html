@@ -190,9 +190,59 @@
         <p class="lecture-card-desc">The final assignment. Robot A holds, robot B traces. Move A and watch B compensate in real time.</p>
         <div class="lecture-card-meta"><span class="lecture-card-tag is-ready">● Ready</span><span>Final assignment</span></div>
       </a>
-      <a href="lectures/21-wrap-up.html" class="lecture-card">
-        <div class="lecture-card-num">Lecture 21</div>
-        <h3 class="lecture-card-title">Wrap-up &amp; portfolio review</h3>
+    </div>
+
+    <h2 class="syllabus-section-title">Module 5 · Dynamics</h2>
+    <div class="lecture-grid">
+      <a href="lectures/22-intro-dynamics.html" class="lecture-card">
+        <div class="lecture-card-num">Lecture 22</div>
+        <h3 class="lecture-card-title">Introduction to robot dynamics</h3>
+        <p class="lecture-card-desc">From "where will the robot go" to "what forces does it take to get there." Twin 2-link arms, side by side: one with kinematic-only control, one with full feedforward dynamics. Same trajectory, two outcomes.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag is-ready">● Ready</span><span>Twin-arm comparison · Sandbox</span></div>
+      </a>
+      <a href="lectures/23-energy-approach.html" class="lecture-card">
+        <div class="lecture-card-num">Lecture 23</div>
+        <h3 class="lecture-card-title">Energy-based approach &amp; the Lagrangian</h3>
+        <p class="lecture-card-desc">Why energy methods beat free-body diagrams for multi-link robots. A double pendulum swings under gravity with live KE / PE / L = T − V plots underneath.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag">○ Coming</span><span>Energy plotter · Stepper · Sandbox</span></div>
+      </a>
+      <a href="lectures/24-2link-derivation.html" class="lecture-card">
+        <div class="lecture-card-num">Lecture 24</div>
+        <h3 class="lecture-card-title">Worked example: 2-link planar arm with tip masses</h3>
+        <p class="lecture-card-desc">Derive D(q), h(q, q̇), c(q) entry by entry for the canonical 2-DOF arm. Click each cell of each matrix; gated reveals open the dynamic equation only after all three are filled.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag">○ Coming</span><span>Three steppers · Sandbox</span></div>
+      </a>
+      <a href="lectures/25-2link-simulator.html" class="lecture-card">
+        <div class="lecture-card-num">Lecture 25</div>
+        <h3 class="lecture-card-title">Extended 2-DOF simulator: feel the equations</h3>
+        <p class="lecture-card-desc">Same arm, now driven by torque profiles you choose. RK4 integrates the equations of motion live. Energy plot below shows conservation when τ = 0 and injection otherwise.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag">○ Coming</span><span>Forward-dynamics sim · Energy plotter</span></div>
+      </a>
+      <a href="lectures/26-lagrangian-formulation.html" class="lecture-card">
+        <div class="lecture-card-num">Lecture 26</div>
+        <h3 class="lecture-card-title">Lagrangian formulation for the general robot</h3>
+        <p class="lecture-card-desc">Generalise the 2-link derivation to n-link chains. Velocity Jacobians, the inertia matrix from kinetic energy, Christoffel symbols for the Coriolis term, gravity from potential energy.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag">○ Coming</span><span>Derivation walker · Sandbox</span></div>
+      </a>
+      <a href="lectures/27-rvm1-case-study.html" class="lecture-card">
+        <div class="lecture-card-num">Lecture 27</div>
+        <h3 class="lecture-card-title">Case study: Mitsubishi MoveMaster RV-M1</h3>
+        <p class="lecture-card-desc">A real 5-DOF industrial robot with real DH and inertia tensors. Pick a trajectory, watch torque demand at each motor against the data-sheet limit. Saturation hot-spots highlighted on the posture diagram.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag">○ Coming</span><span>RV-M1 sim · Torque scope · Sandbox</span></div>
+      </a>
+      <a href="lectures/28-dynamic-components.html" class="lecture-card">
+        <div class="lecture-card-num">Lecture 28</div>
+        <h3 class="lecture-card-title">Understanding D, h, and c term by term</h3>
+        <p class="lecture-card-desc">A decomposition explorer: drag q and q̇ sliders, watch each component (D inertia, h Coriolis, c gravity) update independently with colour-coded matrix entries. Read the physics off the matrices.</p>
+        <div class="lecture-card-meta"><span class="lecture-card-tag">○ Coming</span><span>Component explorer · Sandbox</span></div>
+      </a>
+    </div>
+
+    <h2 class="syllabus-section-title">Module 6 · Wrap-up</h2>
+    <div class="lecture-grid">
+      <a href="lectures/29-wrap-up.html" class="lecture-card">
+        <div class="lecture-card-num">Lecture 29</div>
+        <h3 class="lecture-card-title">Course wrap-up &amp; portfolio review</h3>
         <p class="lecture-card-desc">What we covered, where to go next. How the same primitives scale to mobile manipulators and humanoids.</p>
         <div class="lecture-card-meta"><span class="lecture-card-tag is-ready">● Ready</span><span>Recap</span></div>
       </a>

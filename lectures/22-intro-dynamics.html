@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 22 · Introduction to robot dynamics</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand">
+        <span class="brand-mark">R</span>
+        Kinematics &amp; Dynamics of Robot Manipulators
+      </a>
+      <div class="topnav-links">
+        <a href="../index.html#syllabus">Syllabus</a>
+        <a href="../index.html#about">About</a>
+      </div>
+    </div>
+  </nav>
+
+  <article class="lecture">
+    <main class="lecture-main">
+
+      <header class="lecture-header">
+        <div class="lecture-eyebrow">Lecture 22 · Module 5</div>
+        <h1 class="lecture-title">Introduction to robot dynamics</h1>
+        <p class="lecture-subtitle">
+          Twenty-one lectures of kinematics gave us the geometry of motion. Dynamics asks the next
+          question: <em>what forces and torques cause this motion?</em> The whole rest of this course
+          — actuator sizing, motion control, energy budgets — depends on the answer.
+        </p>
+      </header>
+
+      <section class="lecture-section" id="why">
+        <h2>Kinematics tells you where, dynamics tells you how</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Kinematics is the map. It tells you the route from A to B and where every joint is along the way. Dynamics is the engine, the fuel, and the terrain. It tells you how much torque each motor needs, when the arm will overshoot, and whether the trajectory is even physically possible. You can plan a beautiful path with kinematics alone, but the moment you ask a real motor to track it, dynamics shows up.</p>
+          </div>
+          <p>
+            You already know how to compute end-effector positions, solve inverse kinematics, build
+            Jacobians, and animate trajectories. None of that has touched mass, inertia, gravity, or
+            torque. That's the gap dynamics fills. The relationship is hierarchical: dynamics
+            <em>contains</em> kinematics — the equations of motion still need positions, velocities,
+            and accelerations as inputs — but it adds physical reality on top.
+          </p>
+          <p>
+            Three concrete questions kinematics cannot answer, and dynamics can:
+          </p>
+          <ul>
+            <li><strong>Actuator sizing.</strong> What peak torque does joint 2 need to swing a 5 kg payload from rest to 1 m/s in 0.4 s?</li>
+            <li><strong>Why does it overshoot?</strong> A robot with a perfectly tuned PD controller still oscillates when payload changes. Where does the wobble come from?</li>
+            <li><strong>Energy.</strong> How much electrical power does the cell consume per pick-and-place cycle, and how do I cut it?</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="see-it">
+        <h2>See the difference: kinematics vs computed-torque</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>The widget below runs the same trajectory on two arms with identical hardware and identical gains. The only difference is what the controller knows. The left controller treats the robot like a kinematic skeleton — pure proportional-derivative on joint errors, the way every textbook teaches first. The right controller knows about D, h, c. Watch what happens when you push the period down or load up the tip mass.</p>
+          </div>
+          <p>
+            Both arms are 2-link planar arms with point masses at the elbow and tip. Both are commanded
+            to swing back and forth between the same two configurations. Both share the same K<sub>p</sub>
+            and K<sub>v</sub> gains. The dashed circles mark the target positions for the end-effector at
+            this instant.
+          </p>
+          <p>
+            The <span style="color:#a83232; font-weight:600">left arm (red)</span> uses
+            <strong>τ = K<sub>p</sub>·e + K<sub>v</sub>·ė</strong> — feedback only. The
+            <span style="color:#1f6f3a; font-weight:600">right arm (green)</span> uses the
+            <strong>computed-torque</strong> law:
+          </p>
+        </div>
+
+        <div class="math-display" id="ct-law"></div>
+
+        <div class="prose">
+          <p>
+            That second equation is what this whole module is going to derive, term by term. For now,
+            just feel the difference.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Twin arms · same trajectory · different controllers</span>
+            <span class="widget-tag">forward dynamics · RK4</span>
+          </header>
+          <div class="widget-body">
+            <div data-dynamic-comparison></div>
+          </div>
+        </figure>
+
+        <div class="callout">
+          <div class="callout-title">Try this</div>
+          <p>
+            Hit Play with the defaults. Both arms track reasonably well — the difference is subtle.
+            Now drag <strong>Tip mass m<sub>2</sub></strong> up to 3 kg. The kinematic arm starts to
+            sag and overshoot at the turn-arounds while the computed-torque arm tracks like nothing
+            changed. Now drop the period to 0.7 s — fast motion. The kinematic arm goes wild.
+            Notice the torque plot: the kinematic controller spikes after the error appears (reactive),
+            while the computed-torque law commits the right torques up front (predictive).
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="newton">
+        <h2>Newton's second law, but with coupling</h2>
+        <div class="prose">
+          <p>
+            Every dynamic system obeys F = ma. For a single rigid body, that's a one-line equation.
+            For an n-link manipulator it's a coupled, configuration-dependent system. Three things
+            make it complicated:
+          </p>
+          <ol>
+            <li><strong>Inertial coupling.</strong> Accelerating joint 1 doesn't just accelerate link 1 — it accelerates everything attached to it. The effective inertia at joint 1 changes with configuration: an extended arm presents more inertia than a folded one.</li>
+            <li><strong>Velocity-dependent forces.</strong> When two joints move simultaneously, Coriolis and centrifugal terms appear. They don't exist in static analysis but become substantial at high speed.</li>
+            <li><strong>Configuration-dependent gravity.</strong> Each link's gravitational torque depends on the orientation of every link before it.</li>
+          </ol>
+          <p>
+            All three live in one equation. The same one your computed-torque controller used above:
+          </p>
+        </div>
+
+        <div class="math-display" id="eom"></div>
+
+        <div class="prose">
+          <p>
+            That's the equation we will spend the rest of Module 5 deriving from first principles
+            (Lagrangian mechanics, lectures 23 to 26), implementing for a 2-link arm
+            (lecture 24, by hand), and then for a real industrial robot — the Mitsubishi MoveMaster RV-M1
+            (lecture 27, with proper inertia tensors).
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="forward-inverse">
+        <h2>Forward dynamics vs inverse dynamics</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>The same equation goes two ways. Read it left to right and you get inverse dynamics — given the trajectory you want, compute the torques needed to produce it. Read it right to left and you get forward dynamics — given the torques the motors are applying, predict what the robot will do. Both are useful, in different parts of the pipeline.</p>
+          </div>
+        </div>
+
+        <div class="math-display" id="forward-inverse-pair"></div>
+
+        <div class="prose">
+          <p>
+            <strong>Inverse dynamics</strong> is the one your controller does in real time. You plan
+            a smooth trajectory q<sub>d</sub>(t), q̇<sub>d</sub>(t), q̈<sub>d</sub>(t), and at each
+            tick you compute the torques required to achieve it. That's exactly what the green arm in
+            the widget above is doing 240 times a second.
+          </p>
+          <p>
+            <strong>Forward dynamics</strong> is the one your simulator does. Given the torques being
+            applied right now, integrate to find the next state. That's what every entry in the torque
+            plot above feeds into: an RK4 step that updates positions and velocities. It's also how
+            you safely test a new controller before deploying it on the real robot — let the simulated
+            forward dynamics catch any instabilities.
+          </p>
+          <p>
+            Same equation, two directions, two purposes. Keep them straight: when someone says
+            "compute the dynamics," ask <em>which direction</em>.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Sandbox · forward dynamics for a planar pendulum</span>
+            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="14"
+                 data-initial="% Single-link planar pendulum, no actuator. Mass m at length L from pivot.
+% Equation of motion: m L^2 q̈ + m g L cos(q) = 0  (q=0 is horizontal-right)
+% Forward dynamics: q̈ = -g cos(q) / L
+m = 1; L = 0.5; g = 9.81
+
+% State at t=0
+q = pi/2     % straight up
+qd = 0
+
+% Take one Euler step of size dt
+dt = 0.01
+qdd = -g * cos(q) / L
+q_next  = q + dt * qd
+qd_next = qd + dt * qdd
+
+% Initial acceleration is 0 (cos(pi/2) = 0). Now nudge the angle slightly:
+q  = pi/2 + 0.05
+qdd = -g * cos(q) / L"></div>
+          </div>
+        </figure>
+      </section>
+
+      <section class="lecture-section" id="control-pipeline">
+        <h2>Where this fits in a control pipeline</h2>
+        <div class="prose">
+          <p>
+            The structure that nearly every modern robot controller uses, sketched out:
+          </p>
+          <ol>
+            <li><strong>Trajectory planner</strong> outputs q<sub>d</sub>(t), q̇<sub>d</sub>(t), q̈<sub>d</sub>(t).</li>
+            <li><strong>Inverse-dynamics block (feedforward)</strong> computes τ<sub>ff</sub> = D q̈<sub>d</sub> + h(q, q̇) + c(q) using the desired trajectory and the measured state.</li>
+            <li><strong>Feedback block</strong> adds a small corrective torque τ<sub>fb</sub> proportional to position and velocity errors.</li>
+            <li><strong>Robot</strong> sees τ<sub>total</sub> = τ<sub>ff</sub> + τ<sub>fb</sub>. The feedforward does the heavy lifting; the feedback handles uncertainties (modelling errors, friction, payload changes).</li>
+            <li><strong>Sensors</strong> measure q, q̇ and feed them back to step 2.</li>
+          </ol>
+          <p>
+            Without the feedforward block, feedback gains have to be cranked up enormously to compensate
+            for inertia and gravity, which makes the system noisy, energy-hungry, and prone to
+            instability. With it, feedback gains can be small and the loop stays well-behaved. That's
+            the practical payoff of dynamic modelling.
+          </p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Why this matters for your assessment</div>
+          <p>
+            The final assignment of the Kinematics half (Lecture 20, master-slave) only needed
+            position-level coordination. The dynamics half opens the door to performance-level questions:
+            "is this trajectory achievable with these motors?", "how do I reduce cycle time without
+            sacrificing precision?", "what is the energy bill per cycle?". These are exam-quality
+            questions, and they're all impossible to answer without the equation we just met.
+          </p>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="recap">
+        <h2>Quick recap</h2>
+        <div class="prose">
+          <ul>
+            <li>Kinematics describes motion geometrically; dynamics describes the forces and torques that cause it.</li>
+            <li>The equation of motion for any serial manipulator: <strong>τ = D(q) q̈ + h(q, q̇) + c(q)</strong>.</li>
+            <li>D is the configuration-dependent inertia matrix, h captures Coriolis and centrifugal effects, c captures gravity.</li>
+            <li>Inverse dynamics (used by controllers) takes a trajectory and outputs torques.</li>
+            <li>Forward dynamics (used by simulators) takes torques and outputs accelerations to integrate.</li>
+            <li>A computed-torque controller using inverse dynamics tracks reference trajectories far more cleanly than pure PD — especially under high speed or heavy payload.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="lecture-section" id="homework">
+        <div class="homework">
+          <div class="homework-eyebrow">Homework 22 · due before next session</div>
+          <h3>Feel the equation before we derive it</h3>
+          <ol>
+            <li>Open the twin-arm widget. With the default settings (1.5 s period, 1 kg tip mass, K<sub>p</sub> = 80, K<sub>v</sub> = 14), record the RMS tracking error for each controller after 5 seconds of motion. Now repeat at period = 0.7 s with m<sub>2</sub> = 3 kg. Report all four numbers and a short explanation.</li>
+            <li>Find a configuration of the four sliders where the kinematic controller goes <em>visually unstable</em> (oscillates or flips). What changed? Argue physically why higher payload or faster motion makes the kinematic controller fail before the computed-torque controller does.</li>
+            <li>Consider the equation of motion for a single-link pendulum at rest at q = 0 (horizontal). Sketch by hand the gravitational torque τ that the motor must apply just to hold the arm in place. Now sketch the same for q = π/2 (straight up). Why is one of these easier?</li>
+            <li>Read ahead: Lecture 23 will introduce the Lagrangian L = T − V. As preparation, compute the kinetic and potential energy of a single mass m at position p(q) = (L cos q, L sin q) under gravity. You'll use this exact result in next week's derivation.</li>
+          </ol>
+          <div class="homework-deliverables">
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 1</div>
+              <div class="deliverable-name">Tracking-error table</div>
+              <div class="deliverable-desc">Four RMS numbers (two settings × two controllers) with a short paragraph explaining what changed.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 2</div>
+              <div class="deliverable-name">Stability finding + reasoning</div>
+              <div class="deliverable-desc">A screenshot of the widget at an unstable kinematic-controller setting plus a paragraph of physical reasoning (no equations needed yet).</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 3</div>
+              <div class="deliverable-name">60-second video</div>
+              <div class="deliverable-desc">Walk through the pendulum sketches, explain why one configuration requires zero torque to hold and the other requires maximum torque, and what that has to do with c(q).</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <nav class="lecture-footer-nav">
+        <a href="20-master-slave.html">
+          <span class="label">← Previous</span>
+          <span class="lec-title">Lecture 20 · Master–slave</span>
+        </a>
+        <a href="23-energy-approach.html" class="next">
+          <span class="label">Next →</span>
+          <span class="lec-title">Lecture 23 · Energy &amp; the Lagrangian</span>
+        </a>
+      </nav>
+    </main>
+
+    <aside class="lecture-side">
+      <div class="lecture-side-title">In this lecture</div>
+      <ol class="lecture-toc">
+        <li><a href="#why">Kinematics vs dynamics</a></li>
+        <li><a href="#see-it">Twin-arm comparison</a></li>
+        <li><a href="#newton">Newton, with coupling</a></li>
+        <li><a href="#forward-inverse">Forward vs inverse</a></li>
+        <li><a href="#control-pipeline">Control pipeline</a></li>
+        <li><a href="#recap">Quick recap</a></li>
+        <li><a href="#homework">Homework</a></li>
+      </ol>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a>
+  </footer>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [
+          ['ct-law',
+           '\\boldsymbol{\\tau} \\;=\\; D(q)\\,\\big[\\ddot{q}_d + K_p\\,e + K_v\\,\\dot{e}\\big] \\;+\\; h(q, \\dot{q}) \\;+\\; c(q)'],
+          ['eom',
+           '\\boldsymbol{\\tau} \\;=\\; \\underbrace{D(q)}_{\\text{inertia (configuration-dependent)}}\\,\\ddot{q} \\;+\\; \\underbrace{h(q, \\dot{q})}_{\\text{Coriolis / centrifugal}} \\;+\\; \\underbrace{c(q)}_{\\text{gravity}}'],
+          ['forward-inverse-pair',
+           '\\text{inverse:}\\; \\boldsymbol{\\tau} = D(q)\\,\\ddot{q} + h(q,\\dot{q}) + c(q) \\qquad\\Longleftrightarrow\\qquad \\text{forward:}\\; \\ddot{q} = D^{-1}(q)\\,\\big[\\boldsymbol{\\tau} - h(q,\\dot{q}) - c(q)\\big]'],
+        ];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+
+  <script type="module">
+    import { mountCodeSandbox }       from '../js/widgets/code-sandbox.js';
+    import { mountDynamicComparison } from '../js/widgets/dynamic-comparison.js';
+
+    document.querySelectorAll('[data-dynamic-comparison]').forEach(mountDynamicComparison);
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

@@ -121,7 +121,7 @@ export function mountRotationAnimator(host) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
   camera.position.set(2.4, 2.0, 2.8);
-
+  camera.up.set(0, 0, 1);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   canvasWrap.appendChild(renderer.domElement);
@@ -136,6 +136,7 @@ export function mountRotationAnimator(host) {
   ro.observe(canvasWrap);
 
   const grid = new THREE.GridHelper(4, 16, 0xc8c2b4, 0xddd6c4);
+  grid.rotation.x = Math.PI / 2;
   scene.add(grid);
 
   const fixed = makeFrame(['x', 'y', 'z'], [COLOR.x, COLOR.y, COLOR.z], 1.0);

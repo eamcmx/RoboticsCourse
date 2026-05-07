@@ -183,6 +183,7 @@ export function mountFrameViewer(host) {
 
   const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
   camera.position.set(2.4, 2.0, 2.8);
+  camera.up.set(0, 0, 1);
   camera.lookAt(0, 0, 0);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -201,7 +202,8 @@ export function mountFrameViewer(host) {
 
   // grid floor (subtle)
   const grid = new THREE.GridHelper(4, 16, 0xc8c2b4, 0xddd6c4);
-  grid.position.y = -0.001;
+  grid.rotation.x = Math.PI / 2;
+  grid.position.z = -0.001;
   scene.add(grid);
 
   // origin dot
