@@ -1,363 +1,2311 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lecture 22 · Introduction to robot dynamics</title>
-  <link rel="stylesheet" href="../css/main.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From kinematics to dynamics | bibliosense</title>
 
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
-    }
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+
+<!-- React + Babel-standalone for inline JSX widgets (no build step). -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<!-- KaTeX runtime + auto-render -->
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+          delimiters: [
+            {left:'$$',right:'$$',display:true},
+            {left:'\\[',right:'\\]',display:true},
+            {left:'\\(',right:'\\)',display:false},
+            {left:'$',right:'$',display:false}
+          ],
+          throwOnError: false,
+          ignoredTags: ['script','noscript','style','textarea','pre','code','option']
+        });"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three":         "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/",
+    "mathjs":        "https://cdn.jsdelivr.net/npm/mathjs@13.0.3/+esm",
+    "d3":            "https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm"
   }
-  </script>
+}
+</script>
+
+<style>
+  :root {
+    --brand:       #2F5496;
+    --brand-2:     #1e3a73;
+    --brand-soft:  #e8eef8;
+    --voice-bg:    #f7f5ee;
+    --voice-line:  #c2a25a;
+    --paper:       #fafaf7;
+    --math-bg:     #fbfaf5;
+    --ink:         #1a1d24;
+    --ink-soft:    #4b515c;
+    --rule:        #e6e1d3;
+    --serif: Georgia, 'Iowan Old Style', 'Source Serif Pro', ui-serif, serif;
+    --sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    --mono:  ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.6; }
+
+  .topnav {
+    position: sticky; top: 0; z-index: 30;
+    background: white; border-bottom: 1px solid var(--rule);
+    padding: 12px 28px;
+    display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    font-size: 0.93rem;
+  }
+  .topnav .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); font-weight: 600; }
+  .topnav .brand-mark {
+    width: 32px; height: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    border-radius: 7px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(45,91,255,0.25);
+  }
+  .topnav .brand-mark svg { display: block; width: 100%; height: 100%; }
+  .topnav .brand-meta { display: block; font-size: 0.78rem; color: var(--ink-soft); font-weight: 400; margin-top: 1px; }
+  .topnav-links { display: flex; gap: 16px; }
+  .topnav-links a { color: var(--ink-soft); text-decoration: none; font-weight: 500; transition: color 0.15s; }
+  .topnav-links a:hover { color: var(--brand); }
+
+  .lecture {
+    max-width: 1200px; margin: 0 auto; padding: 0 28px 80px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 56px;
+  }
+  .lecture-main { min-width: 0; }
+  .lecture-side { position: relative; }
+  @media (max-width: 980px) { .lecture { grid-template-columns: 1fr; gap: 0; padding: 0 18px 60px; } .lecture-side { display: none; } }
+
+  .lecture-header { padding: 48px 0 28px; border-bottom: 1px solid var(--rule); margin-bottom: 32px; }
+  .lecture-eyebrow { color: var(--brand); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 14px; }
+  .lecture-title { font-family: var(--serif); font-weight: 600; color: var(--ink); font-size: clamp(2rem, 4.2vw, 2.85rem); line-height: 1.15; margin: 0 0 14px; letter-spacing: -0.01em; }
+  .lecture-subtitle { font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: 1.18rem; line-height: 1.55; margin: 0; max-width: 60ch; }
+  .lecture-byline { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 18px; color: var(--ink-soft); font-size: 0.88rem; }
+  .lecture-byline strong { color: var(--ink); font-weight: 600; }
+
+  .voice {
+    position: relative; background: var(--voice-bg); border-left: 4px solid var(--voice-line);
+    padding: 18px 22px 18px 56px; margin: 22px 0; border-radius: 0 6px 6px 0;
+    font-family: var(--serif); font-style: italic; font-size: 1.04rem; line-height: 1.65; color: #3a3528;
+  }
+  .voice::before { content: '\201C'; position: absolute; left: 16px; top: 4px; font-family: var(--serif); font-size: 3.4rem; color: var(--voice-line); line-height: 1; font-style: normal; opacity: 0.7; }
+  .voice strong { font-style: normal; color: var(--ink); }
+  .voice cite { display: block; margin-top: 8px; font-style: normal; font-size: 0.85rem; color: var(--ink-soft); font-family: var(--sans); }
+
+  section.card {
+    background: white; border: 1px solid var(--rule); border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(20,25,40,0.04);
+    padding: 30px 32px; margin: 22px 0; scroll-margin-top: 90px;
+  }
+  section.card h2 { font-family: var(--serif); color: var(--brand); font-weight: 600; font-size: 1.55rem; letter-spacing: -0.01em; margin: 0 0 1rem; display: flex; align-items: center; gap: 10px; }
+  section.card h3 { font-family: var(--serif); color: var(--brand-2); font-weight: 600; font-size: 1.18rem; margin: 1.25rem 0 0.5rem; }
+  section.card h4 { color: var(--ink); font-weight: 700; font-size: 1rem; margin: 1rem 0 0.25rem; }
+  section.card p { color: #2a2f3a; line-height: 1.65; margin: 0 0 0.85rem; }
+  section.card .badge { background: var(--brand); color: white; width: 32px; height: 32px; border-radius: 8px; font-size: 0.92rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  section.card ul, section.card ol { margin: 0.5rem 0 1rem 1.5rem; }
+  section.card li { margin: 0.25rem 0; }
+  section.card code { background: var(--brand-soft); padding: 1px 6px; border-radius: 4px; font-family: var(--mono); font-size: 0.9em; color: var(--brand-2); }
+  section.card table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.93rem; }
+  section.card th, section.card td { padding: 10px 12px; border: 1px solid var(--rule); text-align: left; vertical-align: top; }
+  section.card th { background: var(--brand-soft); color: var(--brand-2); font-weight: 600; }
+  section.card tr:nth-child(even) td { background: #fafaf7; }
+
+  .callout { border-left: 4px solid; padding: 0.85rem 1.1rem; margin: 1rem 0; border-radius: 4px; font-size: 0.95rem; }
+  .callout strong { display: block; margin-bottom: 0.25rem; }
+  .callout.blue   { border-color:#1976d2; background:#e3f2fd; color:#0d3d6e; }
+  .callout.green  { border-color:#16a34a; background:#e8f5e9; color:#14532d; }
+  .callout.amber  { border-color:#d97706; background:#fff3e0; color:#78350f; }
+  .callout.red    { border-color:#dc2626; background:#ffebee; color:#7f1d1d; }
+  .callout.purple { border-color:#6a1b9a; background:#f3e5f5; color:#4c1d95; }
+  .callout.teal   { border-color:#00838f; background:#e0f7fa; color:#0e4a52; }
+
+  .code-block { background: #fbfaf5; border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin:1rem 0; box-shadow: 0 1px 3px rgba(20,25,40,0.04); }
+  .code-label { background: var(--brand-soft); color: var(--brand); font-size:0.74rem; padding:0.4rem 0.9rem; letter-spacing:0.08em; text-transform: uppercase; font-family: var(--mono); border-bottom: 1px solid var(--rule); }
+  .code-block pre { margin:0; padding:0.95rem 1.1rem; color: #2a2f3a; font-family: var(--mono); font-size:0.88rem; line-height:1.55; overflow-x:auto; }
+  .widget-body > pre, .widget-body pre:first-child {
+    background: white; color: var(--ink); border: 1px dashed var(--rule);
+    box-shadow: none; font-size: 0.85rem;
+  }
+
+  .widget-lead { color: var(--ink); font-size: 0.96rem; line-height: 1.65; margin: 18px 0 10px; padding-left: 14px; border-left: 3px solid var(--brand); font-family: var(--serif); font-style: italic; }
+  .widget { background: white; border: 1px solid var(--rule); border-radius: 10px; margin: 8px 0 22px; overflow: hidden; box-shadow: 0 1px 3px rgba(20,25,40,0.04), 0 6px 20px -10px rgba(20,25,40,0.10); }
+  .widget-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: linear-gradient(135deg, #f4f1e8 0%, #faf8f1 100%); padding: 12px 18px; border-bottom: 1px solid var(--rule); }
+  .widget-title { font-family: var(--serif); font-weight: 600; color: var(--ink); font-size: 1.02rem; margin: 0; }
+  .widget-tag { font-family: var(--mono); font-size: 0.72rem; padding: 3px 9px; border-radius: 999px; background: var(--brand); color: white; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+  .widget-tag.tag-warm   { background: #c2a25a; }
+  .widget-tag.tag-violet { background: #7c3aed; }
+  .widget-body { padding: 18px 18px 16px; }
+
+  .tok { display:inline-block; padding:4px 10px; border-radius:100px; font-family: var(--mono); font-size:0.85rem; font-weight:600; margin:2px 3px; border:1px solid; vertical-align:middle; }
+  .tok-id    { background:#dbeafe; border-color:#3b82f6; color:#1e3a8a; }
+  .tok-num   { background:#d1fae5; border-color:#10b981; color:#065f46; }
+  .tok-op    { background:#fef3c7; border-color:#f59e0b; color:#78350f; }
+  .tok-kw    { background:#f3e8ff; border-color:#a855f7; color:#581c87; }
+  .tok-paren { background:#fee2e2; border-color:#ef4444; color:#7f1d1d; }
+  .tok-nt    { background:#ede9fe; border-color:#8b5cf6; color:#5b21b6; }
+  .tok-term  { background:#e0f2fe; border-color:#0284c7; color:#075985; }
+
+  .input-mono { font-family: var(--mono); font-size:0.95rem; padding:0.55rem 0.8rem; border:1px solid #cbd5e1; border-radius:6px; width:100%; background:white; }
+  .btn { background: var(--brand); color:white; border:0; padding:0.45rem 1.1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.9rem; transition:background 0.15s, transform 0.1s; }
+  .btn:hover { background: var(--brand-2); }
+  .btn:active { transform: translateY(1px); }
+  .btn.secondary { background:white; color: var(--brand); border:1px solid var(--brand); }
+  .btn.secondary:hover { background: var(--brand-soft); }
+  .btn.purple { background:#7c3aed; }
+  .btn.purple:hover { background:#6d28d9; }
+  .btn:disabled { background:#cbd5e1; cursor:default; color: white; }
+
+  .lecture-toc { position: sticky; top: 78px; padding-top: 48px; font-size: 0.86rem; }
+  .lecture-toc .toc-eyebrow { color: var(--brand); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 12px; }
+  .lecture-toc ol { list-style: none; padding: 0; margin: 0; border-left: 1px solid var(--rule); }
+  .lecture-toc a { display: block; padding: 6px 0 6px 14px; margin-left: -1px; border-left: 2px solid transparent; color: var(--ink-soft); text-decoration: none; transition: color 0.15s, border-color 0.15s; line-height: 1.35; }
+  .lecture-toc a:hover { color: var(--brand); }
+  .lecture-toc a.is-active { color: var(--brand); font-weight: 600; border-left-color: var(--brand); }
+
+  footer.lecture-footer { margin-top: 56px; padding: 24px 28px; border-top: 1px solid var(--rule); background: white; color: var(--ink-soft); font-size: 0.84rem; text-align: center; }
+  footer.lecture-footer a { color: var(--brand); text-decoration: none; }
+  footer.lecture-footer a:hover { text-decoration: underline; }
+</style>
 </head>
 <body>
-  <nav class="topnav">
-    <div class="topnav-inner">
-      <a href="../index.html" class="brand">
-        <span class="brand-mark">R</span>
-        Kinematics &amp; Dynamics of Robot Manipulators
-      </a>
-      <div class="topnav-links">
-        <a href="../index.html#syllabus">Syllabus</a>
-        <a href="../index.html#about">About</a>
+
+<nav class="topnav">
+  <a href="../" class="brand">
+    <span class="brand-mark" aria-label="bibliosense">
+      <svg viewBox="0 0 100 100" width="32" height="32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="100" height="100" rx="22" fill="#2D5BFF"/>
+        <text x="32" y="80" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="80" font-weight="700" fill="#fff">b</text>
+        <line x1="56" y1="52" x2="84" y2="22" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="58" cy="50" r="2.5" fill="#fff"/>
+        <circle cx="70" cy="36" r="6"   fill="#fff"/>
+        <circle cx="86" cy="22" r="3"   fill="#fff"/>
+      </svg>
+    </span>
+    <span>Robot Dynamics<span class="brand-meta">by bibliosense</span></span>
+  </a>
+  <div class="topnav-links">
+    <a href="../">All lectures</a>
+  </div>
+</nav>
+
+<article class="lecture">
+<main class="lecture-main">
+
+<header class="lecture-header">
+  <div class="lecture-eyebrow">Lecture 01 · Module 1 · Robot Dynamics</div>
+  <h1 class="lecture-title">From kinematics to dynamics</h1>
+  <p class="lecture-subtitle">Why forces and torques — not just geometry — decide whether a robot actually works.</p>
+  <div class="lecture-byline">
+    <span><strong>Lecturer.</strong> bibliosense</span>
+    <span><strong>Lecture.</strong> 01</span>
+    <span><strong>Course.</strong> Robot Dynamics</span>
+  </div>
+</header>
+
+<div class="voice">Kinematics told us <em>where</em> the robot is and <em>how</em> its parts move relative to each other. That's the map. Today we step into the physics that makes the journey possible — the forces and torques behind every motion. We'll see why a heavy payload changes everything, why an extended arm sags under its own weight, and why the equation \(\boldsymbol{\tau} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})\) is the single most important line in this whole course.</div>
+
+<section class="card" id="overview">
+  <h2><span class="badge">0</span>What this lecture covers</h2>
+  <p>This module bridges what you already know — robot <strong>kinematics</strong> — with the new world of <strong>robot dynamics</strong>. We'll establish <em>why</em> the transition matters, classify the two big problem types (forward and inverse dynamics), introduce the fundamental equation of motion, and look at where dynamic modelling makes or breaks real engineering applications.</p>
+  <p>By the end you should be comfortable with the equation \(\boldsymbol{\tau} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})\), know what each term physically represents, and understand when you'd use forward vs. inverse dynamics in practice.</p>
+
+  <div class="voice">Think of this lecture as the <em>why</em> before the <em>how</em>. The maths comes in Module 2 — today is about building the right mental model.</div>
+
+  <div class="callout blue">
+    <strong>Learning objectives.</strong>
+    Conceptual foundation, problem classification, the role of forces and torques, and the mathematical preparation that guides the rest of the course.
+  </div>
+</section>
+
+<section class="card" id="kinematics-to-dynamics">
+  <h2><span class="badge">1</span>From kinematics to dynamics: the essential transition</h2>
+  <p>Kinematics gives you the geometric backbone — forward kinematics for end-effector position, inverse kinematics for joint angles, Jacobians for velocity, differentiation for acceleration. You can predict <em>where</em> the robot will be at any time. That's powerful, but it's incomplete.</p>
+  <p>Kinematics cannot answer the questions that actually matter on the factory floor: <em>How much torque does this actuator need? Why does the robot overshoot during rapid moves? How does a heavy payload change the motor requirements?</em> For those, we need dynamics.</p>
+  <p><strong>Robot dynamics asks the next question:</strong> <em>what forces and torques cause the motion?</em> That single shift — from describing motion to explaining its physical causes — is what separates a paper trajectory from a working robot.</p>
+
+  <div class="voice">Kinematics is the map; dynamics is the fuel, the engine, and the terrain. You need both.</div>
+
+  <div class="callout blue">
+    <strong>Hierarchical structure.</strong>
+    Dynamics doesn't replace kinematics — it contains it. Every dynamic equation has positions, velocities, and accelerations baked into it as kinematic ingredients.
+  </div>
+  <div class="callout amber">
+    <strong>Configuration dependency.</strong>
+    The effective inertia 'seen' by a motor changes with robot posture. A motor that easily moves an arm in one pose may stall in another, even with the same payload.
+  </div>
+</section>
+
+<section class="card" id="why-dynamics-matters">
+  <h2><span class="badge">2</span>Why dynamic modelling is non-negotiable</h2>
+  <p>Dynamic modelling is the cornerstone of practical robotics, not an academic luxury. The gap between a robot that works in a lab and one that performs reliably in industry usually comes down to model quality.</p>
+  <p>Without dynamics you cannot design effective controllers (you don't know what forces to apply), you cannot select actuators (you don't know what torques are needed), and you cannot optimise performance (you don't understand the energy flows). Compare moving a pencil on paper to moving a 100 kg automotive part at high speed with millimetre precision — the geometric path is similar, but the dynamic requirements are worlds apart.</p>
+  <p>The complexity comes from four physical effects that all act simultaneously:</p>
+  <ul>
+    <li><strong>Inertial coupling</strong> — accelerating one joint accelerates every link attached to it.</li>
+    <li><strong>Gravitational loading</strong> — each link's weight produces a posture-dependent torque.</li>
+    <li><strong>Velocity-dependent forces</strong> — Coriolis and centrifugal effects emerge when joints move together.</li>
+    <li><strong>Configuration dependency</strong> — the effective inertia at each actuator changes with posture.</li>
+  </ul>
+  <p>This is why naïve approaches (just crank up the motor torques, slap on a basic feedback loop) fail spectacularly as speed and precision demands rise.</p>
+
+  <div class="voice">Newton's \(\mathbf{F} = m\mathbf{a}\) still rules — but on a multi-link arm it becomes a tangle of coupled, nonlinear differential equations.</div>
+
+  <div class="callout red">
+    <strong>The physics behind the necessity.</strong>
+    Inertial coupling, gravity, and velocity-dependent forces all change continuously as the robot moves. Static intuition will mislead you in dynamic regimes.
+  </div>
+  <div class="callout amber">
+    <strong>Where it bites.</strong>
+    Precision manufacturing (surface finish, dimensional accuracy) and surgical robotics (tremor-free motion, force limiting, patient safety) are two domains where bad dynamic models cause real harm.
+  </div>
+
+  <p class="widget-lead">The four effects we just listed — inertial coupling, gravitational loading, velocity-dependent (Coriolis/centrifugal) forces, and configuration dependency — never act alone, but each one dominates a particular failure mode. In the picker below, read each symptom (a sagging extended arm, a motor that stalls only in one pose, a curved high-speed path that drifts) and choose the effect that explains it; the matching term in \(\mathbf{D}\ddot{\mathbf{q}} + \mathbf{h} + \mathbf{c}\) will highlight. You should come away able to map a <em>physical</em> observation onto a <em>specific</em> slot in the equation of motion.</p>
+  <div class="widget">
+    <div class="widget-header">
+      <h3 class="widget-title">Pick the dominant effect · which torque term explains this symptom?</h3>
+      <span class="widget-tag tag-warm">activity</span>
+    </div>
+    <div class="widget-body">
+      <div id="why-dynamics-picker"></div>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="case-study-welding">
+  <h2><span class="badge">3</span>Case study: automotive welding robot</h2>
+  <p>A 6-DOF arm welds car body panels at speeds up to <strong>1.5 m/s</strong> with positional accuracy of <strong>±0.1 mm</strong>. This is the textbook case for why dynamic modelling is essential, not optional.</p>
+  <p><strong>Inertial effects during high-speed motion.</strong> Rapid acceleration develops massive inertial forces. Position feedback alone cannot react fast enough to correct these predictable disturbances. The fix is <em>feedforward control</em> using inverse dynamics — the controller computes \(\boldsymbol{\tau} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})\) to predict and cancel inertial forces <em>before</em> they cause tracking error.</p>
+  <p><strong>Gravitational compensation.</strong> An extended horizontal arm sags under its own weight, often by several millimetres — well beyond the ±0.1 mm tolerance. Real-time computation of \(\mathbf{c}(\mathbf{q})\) continuously cancels gravity, making the arm appear weightless to the position controller.</p>
+  <p><strong>Velocity-dependent effects.</strong> Coriolis and centrifugal forces during curved motion can demand 20–30% of total actuator capacity. Compensating for \(\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})\) in real time keeps weld quality consistent regardless of path.</p>
+  <p><strong>Quantitative impact.</strong> Accuracy improved from ±0.5 mm to ±0.05 mm (10× better), production speed up 40%, energy consumption down 25%, scrap rate down 85%. The dynamic-modelling investment paid back in six months.</p>
+
+  <div class="voice">This is the punchline: better physics in the model means tighter tolerances, faster cycles, and lower energy bills — all at once.</div>
+
+  <div class="callout green">
+    <strong>Why feedforward wins.</strong>
+    Feedback alone cannot anticipate inertial or gravitational forces — it only reacts. Feedforward from inverse dynamics cancels them before they become tracking errors.
+  </div>
+</section>
+
+<section class="card" id="forward-vs-inverse">
+  <h2><span class="badge">4</span>Forward vs. inverse dynamics</h2>
+  <p>Robot dynamics naturally splits into two complementary problem classes. Both use the same physics — they just point in opposite directions.</p>
+  <p><strong>Forward dynamics</strong> answers <em>prediction</em>: given the torques I apply, what motion results? It's the simulation problem — solve for \(\ddot{\mathbf{q}}\) given \(\boldsymbol{\tau}\).</p>
+  <p><strong>Inverse dynamics</strong> answers <em>planning</em>: given the motion I want, what torques do I need? It's the control problem — solve for \(\boldsymbol{\tau}\) given \(\mathbf{q}, \dot{\mathbf{q}}, \ddot{\mathbf{q}}\).</p>
+
+  <table>
+    <thead>
+      <tr><th>Aspect</th><th>Forward</th><th>Inverse</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Given</strong></td><td>Torques \(\boldsymbol{\tau}(t)\)</td><td>Trajectory \(\mathbf{q}, \dot{\mathbf{q}}, \ddot{\mathbf{q}}\)</td></tr>
+      <tr><td><strong>Find</strong></td><td>Accelerations \(\ddot{\mathbf{q}}(t)\)</td><td>Torques \(\boldsymbol{\tau}(t)\)</td></tr>
+      <tr><td><strong>Use</strong></td><td>Simulation, verification</td><td>Control design, actuator sizing</td></tr>
+      <tr><td><strong>Cost</strong></td><td>High (matrix inversion)</td><td>Moderate (direct evaluation)</td></tr>
+    </tbody>
+  </table>
+
+  <p>A 7-DOF surgical robot uses both: <strong>inverse dynamics</strong> for pre-operative trajectory planning and feedforward control, <strong>forward dynamics</strong> for real-time safety monitoring — predicting motion under current inputs and flagging discrepancies that might indicate unexpected tissue contact.</p>
+
+  <div class="voice">Same equation, opposite direction. Forward = 'what will happen?' Inverse = 'what should I command?'</div>
+
+  <div class="callout purple">
+    <strong>They work together.</strong>
+    In real systems the two are complementary: inverse dynamics drives the feedforward command, forward dynamics validates the result and watches for anomalies.
+  </div>
+
+  <div class="code-block">
+    <div class="code-label">Forward dynamics — solve for accelerations</div>
+    <pre><code>q̈ = D⁻¹(q) [ τ − h(q, q̇) − c(q) ]</code></pre>
+  </div>
+  <div class="code-block">
+    <div class="code-label">Inverse dynamics — solve for torques</div>
+    <pre><code>τ = D(q) q̈ + h(q, q̇) + c(q)</code></pre>
+  </div>
+
+  <p class="widget-lead">The two directions of dynamics solve the <em>same</em> equation but with opposite knowns and unknowns: forward dynamics solves \(\ddot{\mathbf{q}} = \mathbf{D}^{-1}[\boldsymbol{\tau} - \mathbf{h} - \mathbf{c}]\) for motion given torque, while inverse dynamics solves \(\boldsymbol{\tau} = \mathbf{D}\ddot{\mathbf{q}} + \mathbf{h} + \mathbf{c}\) for torque given a planned trajectory. In the picker below, read each engineering task and choose which direction it requires; the widget will rearrange the equation to highlight the unknown. After all four tasks you should be able to recognise the surgical-robot pattern of using <em>both</em> — inverse for feedforward planning, forward for real-time safety monitoring.</p>
+  <div class="widget">
+    <div class="widget-header">
+      <h3 class="widget-title">Pick the right direction · forward or inverse dynamics?</h3>
+      <span class="widget-tag tag-warm">activity</span>
+    </div>
+    <div class="widget-body">
+      <div id="forward-vs-inverse-picker"></div>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="fundamental-equation">
+  <h2><span class="badge">5</span>The fundamental equation of robot motion</h2>
+  <p>Every dynamic analysis in this course rests on one equation:</p>
+  <p>\[\boldsymbol{\tau} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})\]</p>
+  <p>Where:</p>
+  <ul>
+    <li>\(\boldsymbol{\tau}\) — \(n \times 1\) vector of joint torques (or forces, for prismatic joints)</li>
+    <li>\(\mathbf{D}(\mathbf{q})\) — \(n \times n\) <strong>inertia matrix</strong>, symmetric and positive definite</li>
+    <li>\(\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})\) — \(n \times 1\) vector of <strong>Coriolis and centrifugal</strong> terms</li>
+    <li>\(\mathbf{c}(\mathbf{q})\) — \(n \times 1\) vector of <strong>gravitational</strong> forces</li>
+  </ul>
+  <p>Learn to read this equation physically. The \(\mathbf{D}\ddot{\mathbf{q}}\) term is 'mass times acceleration' for the whole arm — but the mass is a <em>matrix</em> because joints are coupled. The \(\mathbf{h}\) term is the price you pay for <em>moving</em> — Coriolis from joint–joint interaction, centrifugal from a joint's own motion. The \(\mathbf{c}\) term is just gravity, and depends only on configuration.</p>
+
+  <div class="voice">If you remember one thing from this lecture, remember this equation. We'll spend the rest of the course unpacking, deriving, and using it.</div>
+
+  <div class="callout green">
+    <strong>Read it physically.</strong>
+    \(\mathbf{D}\ddot{\mathbf{q}}\) = inertia × acceleration. \(\mathbf{h}\) = velocity-dependent forces. \(\mathbf{c}\) = gravity. Three terms, three sources of torque demand.
+  </div>
+
+  <p class="widget-lead">This section names the three sources of joint torque demand: \(\mathbf{D}(\mathbf{q})\ddot{\mathbf{q}}\) (inertia × acceleration, with off-diagonal coupling), \(\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})\) (Coriolis from joint–joint interaction plus centrifugal from a joint's own velocity), and \(\mathbf{c}(\mathbf{q})\) (gravity, posture-only). In the builder below you place exactly the contributions present in three test scenarios — a static held pose, a pure acceleration from rest, and a steady curved sweep — onto a 2-DOF arm, and the widget assembles your \(\boldsymbol{\tau}\) vector. You should leave able to predict, before doing any maths, which of the three terms vanish in any given operating regime.</p>
+  <div class="widget">
+    <div class="widget-header">
+      <h3 class="widget-title">Build the torque · assemble \(\mathbf{D}\ddot{\mathbf{q}} + \mathbf{h} + \mathbf{c}\) from physical contributions</h3>
+      <span class="widget-tag">practice</span>
+    </div>
+    <div class="widget-body">
+      <div id="equation-builder"></div>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="matrix-properties">
+  <h2><span class="badge">6</span>Properties of the dynamic matrices</h2>
+  <p>The matrices in the equation of motion aren't arbitrary — they have structural properties that we exploit constantly in control design.</p>
+  <p><strong>Inertia matrix \(\mathbf{D}(\mathbf{q})\).</strong> Symmetric and positive definite: \(\mathbf{D} = \mathbf{D}^T\) and \(\mathbf{x}^T \mathbf{D} \mathbf{x} > 0\) for all \(\mathbf{x} \neq 0\). This guarantees energy conservation and underpins stability proofs. It changes with configuration; off-diagonal entries are inertial coupling between joints.</p>
+  <p><strong>Coriolis/centrifugal \(\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})\).</strong> Quadratic in velocity: \(\mathbf{h}(\mathbf{q}, \alpha\dot{\mathbf{q}}) = \alpha^2 \mathbf{h}(\mathbf{q}, \dot{\mathbf{q}})\). Often written as \(\mathbf{C}(\mathbf{q}, \dot{\mathbf{q}})\dot{\mathbf{q}}\). The matrix \(\dot{\mathbf{D}} - 2\mathbf{C}\) is <strong>skew-symmetric</strong> — a <em>passivity</em> property that's gold for nonlinear control design.</p>
+  <p><strong>Gravity \(\mathbf{c}(\mathbf{q})\).</strong> Position-dependent only — independent of velocity. It's a conservative force, derivable from a potential energy function. Bounded for any finite configuration.</p>
+
+  <div class="voice">These properties aren't decoration — they're the toehold that lets us prove a controller actually works.</div>
+
+  <div class="callout teal">
+    <strong>Skew-symmetry = passivity.</strong>
+    \(\dot{\mathbf{D}} - 2\mathbf{C}\) being skew-symmetric is the property that makes passivity-based control of robots possible. Remember it.
+  </div>
+  <div class="callout blue">
+    <strong>Boundedness.</strong>
+    \(\mathbf{D}\) is bounded above and below; \(\mathbf{h}\) is bounded by quadratics in velocity; \(\mathbf{c}\) is bounded for any finite pose. These bounds are the basis for robustness analysis.
+  </div>
+</section>
+
+<section class="card" id="control-integration">
+  <h2><span class="badge">7</span>How dynamics plugs into a control system</h2>
+  <p>Dynamic modelling and control design are symbiotic — better models enable better control. A typical robot control architecture looks like this:</p>
+  <ol>
+    <li><strong>Trajectory planner</strong> generates the desired motion: \(\mathbf{q}_d(t), \dot{\mathbf{q}}_d(t), \ddot{\mathbf{q}}_d(t)\).</li>
+    <li><strong>Inverse dynamics (feedforward)</strong> computes \(\boldsymbol{\tau}_{ff} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}}_d + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})\).</li>
+    <li><strong>Feedback controller</strong> adds corrective torques \(\boldsymbol{\tau}_{fb}\) from tracking error.</li>
+    <li><strong>Total command:</strong> \(\boldsymbol{\tau}_{total} = \boldsymbol{\tau}_{ff} + \boldsymbol{\tau}_{fb}\).</li>
+    <li><strong>Plant (forward dynamics)</strong> — the actual robot — responds with real motion.</li>
+  </ol>
+  <p>Feedforward does the <em>heavy lifting</em>; feedback only mops up the uncertainties (model errors, disturbances, payload changes). Without an accurate dynamic model, feedback has to do everything itself, which is why model-free controllers tend to be sluggish, overshoot, or chatter at high gains.</p>
+
+  <div class="voice">Feedforward predicts. Feedback corrects. Get the model right and feedback's job becomes easy.</div>
+
+  <div class="callout green">
+    <strong>The model is leverage.</strong>
+    Every newton-metre that feedforward delivers correctly is a newton-metre that feedback doesn't have to chase. Better model → less feedback gain needed → better stability margin.
+  </div>
+
+  <div class="code-block">
+    <div class="code-label">Computed-torque control law</div>
+    <pre><code>τ_ff   = D(q) q̈_d + h(q, q̇) + c(q)     # feedforward (inverse dynamics)
+τ_fb   = K_p e + K_d ė                    # feedback on tracking error
+τ_cmd  = τ_ff + τ_fb                      # total joint command</code></pre>
+  </div>
+
+  <p class="widget-lead">This section frames computed-torque control as a five-stage loop: planner → feedforward (inverse dynamics) → feedback → summed command → plant (forward dynamics). The animator below steps through one control tick on a 2-DOF arm and lets you toggle the feedforward branch on or off, with a live readout of tracking error \(e = \mathbf{q}_d - \mathbf{q}\) and required feedback torque. Switch off feedforward and notice the same trajectory now demands much larger feedback torques — that is exactly the <em>leverage</em> the section calls out: every newton-metre delivered correctly by \(\mathbf{D}\ddot{\mathbf{q}}_d + \mathbf{h} + \mathbf{c}\) is one fewer that feedback has to chase.</p>
+  <div class="widget">
+    <div class="widget-header">
+      <h3 class="widget-title">Animated computed-torque loop · feedforward predicts, feedback corrects</h3>
+      <span class="widget-tag tag-violet">live</span>
+    </div>
+    <div class="widget-body">
+      <div id="computed-torque-animator"></div>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="summary-roadmap">
+  <h2><span class="badge">8</span>Summary and roadmap</h2>
+  <p>You now have the conceptual scaffolding for the rest of the course. The fundamental equation \(\boldsymbol{\tau} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})\) is the spine — every subsequent module either derives it, exploits its structure, or applies it.</p>
+  <p><strong>What's coming next:</strong></p>
+  <ul>
+    <li><strong>Module 2</strong> — energy-based formulation using Lagrangian mechanics.</li>
+    <li><strong>Module 3</strong> — full mathematical derivation of the dynamic equations.</li>
+    <li><strong>Module 4</strong> — Lagrangian formulation specialised to robotic manipulators.</li>
+  </ul>
+  <p><strong>Self-check.</strong> Can you explain to a colleague:</p>
+  <ul>
+    <li>Why robot dynamics is more complex than single-body Newton's law?</li>
+    <li>When you would use forward vs. inverse dynamics?</li>
+    <li>What each of \(\mathbf{D}\), \(\mathbf{h}\), \(\mathbf{c}\) physically represents?</li>
+  </ul>
+  <p>If yes — you're ready for Module 2.</p>
+
+  <div class="voice">The maths starts in earnest next time. Today's job was to make sure you know <em>why</em> we need it.</div>
+
+  <div class="callout amber">
+    <strong>Prerequisites to refresh.</strong>
+    Transformation matrices and Jacobians (kinematics), matrix calculus and ODEs (maths), Newton's laws and energy conservation (physics), and basic numerical computing in MATLAB or Python.
+  </div>
+</section>
+
+</main>
+
+<aside class="lecture-side">
+  <nav class="lecture-toc" aria-label="Lecture contents">
+    <p class="toc-eyebrow">On this page</p>
+    <ol>
+      <li><a href="#overview">0 · What this lecture covers</a></li>
+      <li><a href="#kinematics-to-dynamics">1 · From kinematics to dynamics</a></li>
+      <li><a href="#why-dynamics-matters">2 · Why dynamic modelling is non-negotiable</a></li>
+      <li><a href="#case-study-welding">3 · Case study: welding robot</a></li>
+      <li><a href="#forward-vs-inverse">4 · Forward vs. inverse dynamics</a></li>
+      <li><a href="#fundamental-equation">5 · The fundamental equation of motion</a></li>
+      <li><a href="#matrix-properties">6 · Properties of the dynamic matrices</a></li>
+      <li><a href="#control-integration">7 · How dynamics plugs into control</a></li>
+      <li><a href="#summary-roadmap">8 · Summary and roadmap</a></li>
+    </ol>
+  </nav>
+</aside>
+
+</article>
+
+<footer class="lecture-footer">
+  TSI · Robot Dynamics · Lecture 01 · <a href="../">all lectures</a>
+</footer>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useEffect, useRef, useMemo } = React;
+
+// ---------- Shared equation-bar component ----------
+function EqTermBox({ active, color, children }) {
+  const bg = active ? color : 'white';
+  const border = active ? color : '#cbd5e1';
+  const txt = active ? 'white' : '#1a1d24';
+  return (
+    <span style={{
+      display: 'inline-block',
+      padding: '6px 12px',
+      margin: '2px 4px',
+      borderRadius: 8,
+      border: '2px solid ' + border,
+      background: bg,
+      color: txt,
+      fontFamily: 'var(--mono)',
+      fontWeight: active ? 700 : 500,
+      fontSize: '0.95rem',
+      transition: 'all 0.35s',
+      transform: active ? 'scale(1.08)' : 'scale(1)',
+      boxShadow: active ? '0 4px 14px -4px ' + color : 'none'
+    }}>
+      {children}
+    </span>
+  );
+}
+
+function EquationBar({ highlight }) {
+  return (
+    <div style={{
+      marginTop: 18, padding: '14px 16px',
+      background: '#fbfaf5', borderRadius: 10,
+      border: '1px solid var(--rule)', textAlign: 'center'
+    }}>
+      <span style={{ fontFamily: 'var(--mono)', fontSize: '1.05rem', marginRight: 10 }}>τ =</span>
+      <EqTermBox active={highlight === 'D'} color="#2563eb">D(q) q̈</EqTermBox>
+      <span style={{ margin: '0 4px', fontFamily: 'var(--mono)', color: '#4b515c' }}>+</span>
+      <EqTermBox active={highlight === 'h'} color="#7c3aed">h(q, q̇)</EqTermBox>
+      <span style={{ margin: '0 4px', fontFamily: 'var(--mono)', color: '#4b515c' }}>+</span>
+      <EqTermBox active={highlight === 'c'} color="#16a34a">c(q)</EqTermBox>
+    </div>
+  );
+}
+
+// ============================================================
+// WIDGET 1 — WhyDynamicsPicker (picker)
+// ============================================================
+function WhyDynamicsPicker() {
+  const SCENARIOS = [
+    {
+      id: 'sagging-arm',
+      prompt: 'A 6-DOF arm holds a tool at full horizontal reach. With motors energised but no commanded motion, the tip droops by 4 mm. Which effect dominates?',
+      options: [
+        { label: 'Gravitational loading \\(\\mathbf{c}(\\mathbf{q})\\)', correct: true,  highlight: 'c', feedback: 'Right — \\(\\mathbf{c}(\\mathbf{q})\\) is position-only and produces a configuration-dependent static torque. Horizontal reach maximises the moment arm, so droop is large.' },
+        { label: 'Inertial coupling \\(\\mathbf{D}(\\mathbf{q})\\ddot{\\mathbf{q}}\\)', correct: false, highlight: 'D', feedback: 'No — there is no commanded acceleration. \\(\\mathbf{D}\\ddot{\\mathbf{q}}\\) vanishes when \\(\\ddot{\\mathbf{q}}=\\mathbf{0}\\).' },
+        { label: 'Coriolis/centrifugal \\(\\mathbf{h}(\\mathbf{q},\\dot{\\mathbf{q}})\\)', correct: false, highlight: 'h', feedback: 'No — \\(\\mathbf{h}\\) is quadratic in velocity and the arm is not moving.' },
+        { label: 'Friction at the gearbox', correct: false, highlight: null, feedback: 'Friction matters but does not explain a posture-dependent steady-state droop. Gravity is the dominant term.' }
+      ]
+    },
+    {
+      id: 'curved-path-drift',
+      prompt: 'During a 1.5 m/s curved weld, joints 2 and 3 move simultaneously and the tool drifts off path by ~0.3 mm even though gravity is already cancelled. Which effect dominates?',
+      options: [
+        { label: 'Coriolis/centrifugal \\(\\mathbf{h}(\\mathbf{q},\\dot{\\mathbf{q}})\\)', correct: true, highlight: 'h', feedback: 'Correct — joint–joint interaction at speed is exactly what \\(\\mathbf{h}\\) captures, and at 1.5 m/s it can demand 20–30 % of actuator capacity.' },
+        { label: 'Gravitational \\(\\mathbf{c}(\\mathbf{q})\\)', correct: false, highlight: 'c', feedback: 'Gravity is already compensated in the scenario; the residual at speed is velocity-dependent.' },
+        { label: 'Pure inertia \\(\\mathbf{D}(\\mathbf{q})\\ddot{\\mathbf{q}}\\)', correct: false, highlight: 'D', feedback: 'Inertia explains acceleration-driven errors, but the symptom is path drift on a curved trajectory at constant speed — that is a velocity coupling effect.' },
+        { label: 'Backlash in the reducer', correct: false, highlight: null, feedback: 'Possible secondary cause but not the dominant one for path-shape-dependent error during simultaneous joint motion.' }
+      ]
+    },
+    {
+      id: 'stall-in-pose',
+      prompt: 'A motor easily slewsLooking at this task, I need to render a complete interactive lecture HTML page with 4 widgets, the buddy mount, and proper TOC. Let me write it out directly.
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From kinematics to dynamics | bibliosense</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+          delimiters: [
+            {left:'$$',right:'$$',display:true},
+            {left:'\\[',right:'\\]',display:true},
+            {left:'$',right:'$',display:false},
+            {left:'\\(',right:'\\)',display:false}
+          ],
+          throwOnError: false
+        });"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three":         "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/",
+    "mathjs":        "https://cdn.jsdelivr.net/npm/mathjs@13.0.3/+esm",
+    "d3":            "https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm"
+  }
+}
+</script>
+
+<style>
+  :root {
+    --brand:       #2F5496;
+    --brand-2:     #1e3a73;
+    --brand-soft:  #e8eef8;
+    --voice-bg:    #f7f5ee;
+    --voice-line:  #c2a25a;
+    --paper:       #fafaf7;
+    --math-bg:     #fbfaf5;
+    --ink:         #1a1d24;
+    --ink-soft:    #4b515c;
+    --rule:        #e6e1d3;
+    --serif: Georgia, 'Iowan Old Style', 'Source Serif Pro', ui-serif, serif;
+    --sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    --mono:  ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.6; }
+
+  .topnav {
+    position: sticky; top: 0; z-index: 30;
+    background: white; border-bottom: 1px solid var(--rule);
+    padding: 12px 28px;
+    display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    font-size: 0.93rem;
+  }
+  .topnav .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); font-weight: 600; }
+  .topnav .brand-mark {
+    width: 32px; height: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    border-radius: 7px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(45,91,255,0.25);
+  }
+  .topnav .brand-mark svg { display: block; width: 100%; height: 100%; }
+  .topnav .brand-meta { display: block; font-size: 0.78rem; color: var(--ink-soft); font-weight: 400; margin-top: 1px; }
+  .topnav-links { display: flex; gap: 16px; }
+  .topnav-links a { color: var(--ink-soft); text-decoration: none; font-weight: 500; transition: color 0.15s; }
+  .topnav-links a:hover { color: var(--brand); }
+
+  .lecture {
+    max-width: 1200px; margin: 0 auto; padding: 0 28px 80px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 56px;
+  }
+  .lecture-main { min-width: 0; }
+  .lecture-side { position: relative; }
+  @media (max-width: 980px) { .lecture { grid-template-columns: 1fr; gap: 0; padding: 0 18px 60px; } .lecture-side { display: none; } }
+
+  .lecture-header { padding: 48px 0 28px; border-bottom: 1px solid var(--rule); margin-bottom: 32px; }
+  .lecture-eyebrow { color: var(--brand); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 14px; }
+  .lecture-title { font-family: var(--serif); font-weight: 600; color: var(--ink); font-size: clamp(2rem, 4.2vw, 2.85rem); line-height: 1.15; margin: 0 0 14px; letter-spacing: -0.01em; }
+  .lecture-subtitle { font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: 1.18rem; line-height: 1.55; margin: 0; max-width: 60ch; }
+  .lecture-byline { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 18px; color: var(--ink-soft); font-size: 0.88rem; }
+  .lecture-byline strong { color: var(--ink); font-weight: 600; }
+
+  .voice {
+    position: relative; background: var(--voice-bg); border-left: 4px solid var(--voice-line);
+    padding: 18px 22px 18px 56px; margin: 22px 0; border-radius: 0 6px 6px 0;
+    font-family: var(--serif); font-style: italic; font-size: 1.04rem; line-height: 1.65; color: #3a3528;
+  }
+  .voice::before { content: '\201C'; position: absolute; left: 16px; top: 4px; font-family: var(--serif); font-size: 3.4rem; color: var(--voice-line); line-height: 1; font-style: normal; opacity: 0.7; }
+  .voice strong { font-style: normal; color: var(--ink); }
+  .voice cite { display: block; margin-top: 8px; font-style: normal; font-size: 0.85rem; color: var(--ink-soft); font-family: var(--sans); }
+
+  section.card {
+    background: white; border: 1px solid var(--rule); border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(20,25,40,0.04);
+    padding: 30px 32px; margin: 22px 0; scroll-margin-top: 90px;
+  }
+  section.card h2 { font-family: var(--serif); color: var(--brand); font-weight: 600; font-size: 1.55rem; letter-spacing: -0.01em; margin: 0 0 1rem; display: flex; align-items: center; gap: 10px; }
+  section.card h3 { font-family: var(--serif); color: var(--brand-2); font-weight: 600; font-size: 1.18rem; margin: 1.25rem 0 0.5rem; }
+  section.card h4 { color: var(--ink); font-weight: 700; font-size: 1rem; margin: 1rem 0 0.25rem; }
+  section.card p { color: #2a2f3a; line-height: 1.65; margin: 0 0 0.85rem; }
+  section.card .badge { background: var(--brand); color: white; width: 32px; height: 32px; border-radius: 8px; font-size: 0.92rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  section.card ul, section.card ol { margin: 0.5rem 0 1rem 1.5rem; }
+  section.card li { margin: 0.25rem 0; }
+  section.card code { background: var(--brand-soft); padding: 1px 6px; border-radius: 4px; font-family: var(--mono); font-size: 0.9em; color: var(--brand-2); }
+  section.card table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.93rem; }
+  section.card th, section.card td { border: 1px solid var(--rule); padding: 8px 12px; text-align: left; vertical-align: top; }
+  section.card th { background: var(--brand-soft); color: var(--brand-2); font-weight: 600; }
+
+  .callout { border-left: 4px solid; padding: 0.85rem 1.1rem; margin: 1rem 0; border-radius: 4px; font-size: 0.95rem; }
+  .callout strong { display: block; margin-bottom: 0.25rem; }
+  .callout.blue   { border-color:#1976d2; background:#e3f2fd; color:#0d3d6e; }
+  .callout.green  { border-color:#16a34a; background:#e8f5e9; color:#14532d; }
+  .callout.amber  { border-color:#d97706; background:#fff3e0; color:#78350f; }
+  .callout.red    { border-color:#dc2626; background:#ffebee; color:#7f1d1d; }
+  .callout.purple { border-color:#6a1b9a; background:#f3e5f5; color:#4c1d95; }
+  .callout.teal   { border-color:#00838f; background:#e0f7fa; color:#0e4a52; }
+
+  .code-block { background: #fbfaf5; border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin:1rem 0; box-shadow: 0 1px 3px rgba(20,25,40,0.04); }
+  .code-label { background: var(--brand-soft); color: var(--brand); font-size:0.74rem; padding:0.4rem 0.9rem; letter-spacing:0.08em; text-transform: uppercase; font-family: var(--mono); border-bottom: 1px solid var(--rule); }
+  .code-block pre { margin:0; padding:0.95rem 1.1rem; color: #2a2f3a; font-family: var(--mono); font-size:0.88rem; line-height:1.55; overflow-x:auto; }
+  .widget-body > pre, .widget-body pre:first-child {
+    background: white; color: var(--ink); border: 1px dashed var(--rule);
+    box-shadow: none; font-size: 0.85rem;
+  }
+
+  .widget-lead { color: var(--ink); font-size: 0.96rem; line-height: 1.65; margin: 18px 0 10px; padding-left: 14px; border-left: 3px solid var(--brand); font-family: var(--serif); font-style: italic; }
+  .widget { background: white; border: 1px solid var(--rule); border-radius: 10px; margin: 8px 0 22px; overflow: hidden; box-shadow: 0 1px 3px rgba(20,25,40,0.04), 0 6px 20px -10px rgba(20,25,40,0.10); }
+  .widget-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: linear-gradient(135deg, #f4f1e8 0%, #faf8f1 100%); padding: 12px 18px; border-bottom: 1px solid var(--rule); }
+  .widget-title { font-family: var(--serif); font-weight: 600; color: var(--ink); font-size: 1.02rem; margin: 0; }
+  .widget-tag { font-family: var(--mono); font-size: 0.72rem; padding: 3px 9px; border-radius: 999px; background: var(--brand); color: white; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+  .widget-tag.tag-warm   { background: #c2a25a; }
+  .widget-tag.tag-violet { background: #7c3aed; }
+  .widget-body { padding: 18px 18px 16px; }
+
+  .tok { display:inline-block; padding:4px 10px; border-radius:100px; font-family: var(--mono); font-size:0.85rem; font-weight:600; margin:2px 3px; border:1px solid; vertical-align:middle; }
+  .tok-id    { background:#dbeafe; border-color:#3b82f6; color:#1e3a8a; }
+  .tok-num   { background:#d1fae5; border-color:#10b981; color:#065f46; }
+  .tok-op    { background:#fef3c7; border-color:#f59e0b; color:#78350f; }
+  .tok-kw    { background:#f3e8ff; border-color:#a855f7; color:#581c87; }
+  .tok-paren { background:#fee2e2; border-color:#ef4444; color:#7f1d1d; }
+  .tok-nt    { background:#ede9fe; border-color:#8b5cf6; color:#5b21b6; }
+  .tok-term  { background:#e0f2fe; border-color:#0284c7; color:#075985; }
+
+  .input-mono { font-family: var(--mono); font-size:0.95rem; padding:0.55rem 0.8rem; border:1px solid #cbd5e1; border-radius:6px; width:100%; background:white; }
+  .btn { background: var(--brand); color:white; border:0; padding:0.45rem 1.1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.9rem; transition:background 0.15s, transform 0.1s; }
+  .btn:hover { background: var(--brand-2); }
+  .btn:active { transform: translateY(1px); }
+  .btn.secondary { background:white; color: var(--brand); border:1px solid var(--brand); }
+  .btn.secondary:hover { background: var(--brand-soft); }
+  .btn.purple { background:#7c3aed; }
+  .btn.purple:hover { background:#6d28d9; }
+  .btn:disabled { background:#cbd5e1; cursor:default; color: white; }
+
+  .lecture-toc { position: sticky; top: 78px; padding-top: 48px; font-size: 0.86rem; }
+  .lecture-toc .toc-eyebrow { color: var(--brand); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 12px; }
+  .lecture-toc ol { list-style: none; padding: 0; margin: 0; border-left: 1px solid var(--rule); }
+  .lecture-toc a { display: block; padding: 6px 0 6px 14px; margin-left: -1px; border-left: 2px solid transparent; color: var(--ink-soft); text-decoration: none; transition: color 0.15s, border-color 0.15s; line-height: 1.35; }
+  .lecture-toc a:hover { color: var(--brand); }
+  .lecture-toc a.is-active { color: var(--brand); font-weight: 600; border-left-color: var(--brand); }
+
+  footer.lecture-footer { margin-top: 56px; padding: 24px 28px; border-top: 1px solid var(--rule); background: white; color: var(--ink-soft); font-size: 0.84rem; text-align: center; }
+  footer.lecture-footer a { color: var(--brand); text-decoration: none; }
+  footer.lecture-footer a:hover { text-decoration: underline; }
+
+  /* Widget-specific helpers */
+  .eq-bar { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:14px 16px; background:#f8fafc; border:1px solid var(--rule); border-radius:8px; margin-bottom:14px; font-family: var(--mono); font-size:1.05rem; justify-content:center; }
+  .eq-term { padding:4px 10px; border-radius:6px; border:1px solid #cbd5e1; background:white; transition: all 0.3s; color:#475569; }
+  .eq-term.is-hot { background:#fff3e0; border-color:#d97706; color:#78350f; box-shadow:0 0 0 3px rgba(217,119,6,0.18); transform: scale(1.06); }
+  .eq-eq { color: var(--ink-soft); padding:0 4px; }
+  .pick-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .pick-tab { padding:6px 12px; font-size:0.82rem; border:1px solid var(--rule); background:white; border-radius:999px; cursor:pointer; color:var(--ink-soft); font-weight:600; transition: all 0.15s; }
+  .pick-tab.is-active { background: var(--brand); color:white; border-color: var(--brand); }
+  .pick-tab.done { border-color:#16a34a; color:#16a34a; }
+  .pick-tab.done.is-active { background:#16a34a; color:white; border-color:#16a34a; }
+  .opt-grid { display:grid; grid-template-columns:1fr; gap:8px; margin-top:12px; }
+  @media (min-width: 640px) { .opt-grid.cols-2 { grid-template-columns: 1fr 1fr; } }
+  .opt-btn { text-align:left; padding:10px 14px; border:1px solid var(--rule); background:white; border-radius:8px; cursor:pointer; font-family: var(--sans); font-size:0.93rem; line-height:1.4; color:var(--ink); transition: all 0.15s; }
+  .opt-btn:hover { background:#f8fafc; border-color:#94a3b8; }
+  .opt-btn.is-correct { background:#e8f5e9; border-color:#16a34a; color:#14532d; }
+  .opt-btn.is-wrong { background:#ffebee; border-color:#dc2626; color:#7f1d1d; }
+  .opt-btn.is-disabled { opacity:0.55; cursor:default; }
+  .opt-feedback { margin-top:10px; padding:10px 14px; border-radius:6px; font-size:0.9rem; line-height:1.5; }
+  .opt-feedback.good { background:#e8f5e9; color:#14532d; border-left:3px solid #16a34a; }
+  .opt-feedback.bad  { background:#fff8e1; color:#78350f; border-left:3px solid #d97706; }
+  .scen-prompt { font-size:0.97rem; color:var(--ink); padding:10px 12px; background:#f8fafc; border-left:3px solid var(--brand); border-radius:0 6px 6px 0; }
+
+  /* equation-builder */
+  .blocks-palette { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+  .blk { padding:8px 12px; border-radius:8px; font-size:0.88rem; font-family: var(--mono); cursor:pointer; border:1px solid; transition: all 0.15s; user-select:none; }
+  .blk-D  { background:#dbeafe; border-color:#3b82f6; color:#1e3a8a; }
+  .blk-h  { background:#fef3c7; border-color:#f59e0b; color:#78350f; }
+  .blk-c  { background:#d1fae5; border-color:#10b981; color:#065f46; }
+  .blk.in-build { box-shadow: inset 0 0 0 2px rgba(0,0,0,0.15); transform:scale(0.97); }
+  .blk:hover { transform: translateY(-1px); }
+  .build-zone { border:2px dashed var(--rule); border-radius:8px; padding:14px; min-height:80px; background:#fbfaf5; display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:center; }
+  .build-zone.empty { color:var(--ink-soft); font-style:italic; }
+  .build-summary { font-family: var(--mono); font-size:1rem; padding:12px 14px; background:white; border:1px solid var(--rule); border-radius:6px; margin-top:10px; text-align:center; }
+  .scen-status { padding:10px 14px; border-radius:6px; margin-top:10px; font-size:0.9rem; line-height:1.5; }
+  .scen-status.ok { background:#e8f5e9; color:#14532d; border-left:3px solid #16a34a; }
+  .scen-status.warn { background:#fff8e1; color:#78350f; border-left:3px solid #d97706; }
+  .scen-status.idle { background:#f1f5f9; color:#475569; border-left:3px solid #94a3b8; }
+
+  /* animator */
+  .ct-stages { display:grid; grid-template-columns: 1fr; gap:10px; }
+  @media (min-width: 720px) { .ct-stages { grid-template-columns: repeat(3, 1fr); } }
+  .ct-stage { padding:12px 14px; border-radius:8px; border:1px solid var(--rule); background:white; transition: all 0.35s; }
+  .ct-stage h4 { margin:0 0 4px; font-size:0.92rem; color: var(--brand-2); font-family: var(--serif); }
+  .ct-stage p { margin:0; font-size:0.82rem; color: var(--ink-soft); line-height:1.45; }
+  .ct-stage.is-active { background: linear-gradient(135deg,#fff3e0,#ffe9c2); border-color:#d97706; transform: translateY(-2px); box-shadow:0 6px 14px -6px rgba(217,119,6,0.4); }
+  .ct-stage.is-done { background:#e8f5e9; border-color:#16a34a; }
+  .ct-bars { display:flex; gap:14px; align-items:flex-end; height:120px; padding:10px; background:#f8fafc; border-radius:8px; margin-top:14px; }
+  .ct-bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .ct-bar-col .lbl { font-size:0.72rem; color:var(--ink-soft); font-family:var(--mono); }
+  .ct-bar { width:34px; border-radius:4px 4px 0 0; transition: height 0.5s; min-height:4px; }
+  .ct-bar.ff { background: linear-gradient(180deg,#3b82f6,#1d4ed8); }
+  .ct-bar.fb { background: linear-gradient(180deg,#dc2626,#7f1d1d); }
+  .ct-bar.err { background: linear-gradient(180deg,#d97706,#78350f); }
+  .preset-row { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="../" class="brand">
+    <span class="brand-mark" aria-label="bibliosense">
+      <svg viewBox="0 0 100 100" width="32" height="32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="100" height="100" rx="22" fill="#2D5BFF"/>
+        <text x="32" y="80" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="80" font-weight="700" fill="#fff">b</text>
+        <line x1="56" y1="52" x2="84" y2="22" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="58" cy="50" r="2.5" fill="#fff"/>
+        <circle cx="70" cy="36" r="6"   fill="#fff"/>
+        <circle cx="86" cy="22" r="3"   fill="#fff"/>
+      </svg>
+    </span>
+    <span>Robot Dynamics<span class="brand-meta">by bibliosense</span></span>
+  </a>
+  <div class="topnav-links">
+    <a href="../">All lectures</a>
+  </div>
+</nav>
+
+<article class="lecture">
+<main class="lecture-main">
+
+<header class="lecture-header">
+  <div class="lecture-eyebrow">Lecture 01 · Module 1 · Robot Dynamics</div>
+  <h1 class="lecture-title">From kinematics to dynamics</h1>
+  <p class="lecture-subtitle">Why forces and torques — not just geometry — decide whether a robot actually works.</p>
+  <div class="lecture-byline">
+    <span><strong>Lecturer.</strong> bibliosense</span>
+    <span><strong>Lecture.</strong> 01</span>
+  </div>
+</header>
+
+<div class="voice">Kinematics told us <em>where</em> the robot is and <em>how</em> its parts move relative to each other. That's the map. Today we step into the physics that makes the journey possible — the forces and torques behind every motion. We'll see why a heavy payload changes everything, why an extended arm sags under its own weight, and why the equation $\boldsymbol{\tau} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})$ is the single most important line in this whole course.</div>
+
+<section class="card" id="overview">
+  <h2><span class="badge">0</span>What this lecture covers</h2>
+  <p>This module bridges what you already know — robot <strong>kinematics</strong> — with the new world of <strong>robot dynamics</strong>. We'll establish <em>why</em> the transition matters, classify the two big problem types (forward and inverse dynamics), introduce the fundamental equation of motion, and look at where dynamic modelling makes or breaks real engineering applications.</p>
+  <p>By the end you should be comfortable with the equation $\boldsymbol{\tau} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})$, know what each term physically represents, and understand when you'd use forward vs. inverse dynamics in practice.</p>
+  <div class="callout blue"><strong>Learning objectives.</strong>Conceptual foundation, problem classification, the role of forces and torques, and the mathematical preparation that guides the rest of the course.</div>
+</section>
+
+<section class="card" id="kinematics-to-dynamics">
+  <h2><span class="badge">1</span>From kinematics to dynamics: the essential transition</h2>
+  <p>Kinematics gives you the geometric backbone — forward kinematics for end-effector position, inverse kinematics for joint angles, Jacobians for velocity, differentiation for acceleration. You can predict <em>where</em> the robot will be at any time. That's powerful, but it's incomplete.</p>
+  <p>Kinematics cannot answer the questions that actually matter on the factory floor: <em>How much torque does this actuator need? Why does the robot overshoot during rapid moves? How does a heavy payload change the motor requirements?</em> For those, we need dynamics.</p>
+  <p><strong>Robot dynamics asks the next question:</strong> <em>what forces and torques cause the motion?</em> That single shift — from describing motion to explaining its physical causes — is what separates a paper trajectory from a working robot.</p>
+  <div class="callout blue"><strong>Hierarchical structure.</strong>Dynamics doesn't replace kinematics — it contains it. Every dynamic equation has positions, velocities, and accelerations baked into it as kinematic ingredients.</div>
+  <div class="callout amber"><strong>Configuration dependency.</strong>The effective inertia 'seen' by a motor changes with robot posture. A motor that easily moves an arm in one pose may stall in another, even with the same payload.</div>
+</section>
+
+<section class="card" id="why-dynamics-matters">
+  <h2><span class="badge">2</span>Why dynamic modelling is non-negotiable</h2>
+  <p>Dynamic modelling is the cornerstone of practical robotics, not an academic luxury. The gap between a robot that works in a lab and one that performs reliably in industry usually comes down to model quality.</p>
+  <p>Without dynamics you cannot design effective controllers (you don't know what forces to apply), you cannot select actuators (you don't know what torques are needed), and you cannot optimise performance (you don't understand the energy flows). Compare moving a pencil on paper to moving a 100 kg automotive part at high speed with millimetre precision — the geometric path is similar, but the dynamic requirements are worlds apart.</p>
+  <p>The complexity comes from four physical effects that all act simultaneously:</p>
+  <ul>
+    <li><strong>Inertial coupling</strong> — accelerating one joint accelerates every link attached to it.</li>
+    <li><strong>Gravitational loading</strong> — each link's weight produces a posture-dependent torque.</li>
+    <li><strong>Velocity-dependent forces</strong> — Coriolis and centrifugal effects emerge when joints move together.</li>
+    <li><strong>Configuration dependency</strong> — the effective inertia at each actuator changes with posture.</li>
+  </ul>
+  <p>This is why naïve approaches (just crank up the motor torques, slap on a basic feedback loop) fail spectacularly as speed and precision demands rise.</p>
+  <div class="callout red"><strong>The physics behind the necessity.</strong>Inertial coupling, gravity, and velocity-dependent forces all change continuously as the robot moves. Static intuition will mislead you in dynamic regimes.</div>
+  <div class="callout amber"><strong>Where it bites.</strong>Precision manufacturing (surface finish, dimensional accuracy) and surgical robotics (tremor-free motion, force limiting, patient safety) are two domains where bad dynamic models cause real harm.</div>
+
+  <p class="widget-lead">The four effects we just listed — inertial coupling, gravitational loading, velocity-dependent (Coriolis/centrifugal) forces, and configuration dependency — never act alone, but each one dominates a particular failure mode. In the picker below, read each symptom (a sagging extended arm, a motor that stalls only in one pose, a curved high-speed path that drifts) and choose the effect that explains it; the matching term in $\mathbf{D}\ddot{\mathbf{q}} + \mathbf{h} + \mathbf{c}$ will highlight. You should come away able to map a <em>physical</em> observation onto a <em>specific</em> slot in the equation of motion.</p>
+  <div class="widget">
+    <div class="widget-header">
+      <h3 class="widget-title">Pick the dominant effect · which torque term explains this symptom?</h3>
+      <span class="widget-tag">activity</span>
+    </div>
+    <div class="widget-body">
+      <div id="why-dynamics-picker"></div>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="case-study-welding">
+  <h2><span class="badge">3</span>Case study: automotive welding robot</h2>
+  <p>A 6-DOF arm welds car body panels at speeds up to <strong>1.5 m/s</strong> with positional accuracy of <strong>±0.1 mm</strong>. This is the textbook case for why dynamic modelling is essential, not optional.</p>
+  <p><strong>Inertial effects during high-speed motion.</strong> Rapid acceleration develops massive inertial forces. Position feedback alone cannot react fast enough to correct these predictable disturbances. The fix is <em>feedforward control</em> using inverse dynamics — the controller computes $\boldsymbol{\tau} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})$ to predict and cancel inertial forces <em>before</em> they cause tracking error.</p>
+  <p><strong>Gravitational compensation.</strong> An extended horizontal arm sags under its own weight, often by several millimetres — well beyond the ±0.1 mm tolerance. Real-time computation of $\mathbf{c}(\mathbf{q})$ continuously cancels gravity, making the arm appear weightless to the position controller.</p>
+  <p><strong>Velocity-dependent effects.</strong> Coriolis and centrifugal forces during curved motion can demand 20–30% of total actuator capacity. Compensating for $\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})$ in real time keeps weld quality consistent regardless of path.</p>
+  <p><strong>Quantitative impact.</strong> Accuracy improved from ±0.5 mm to ±0.05 mm (10× better), production speed up 40%, energy consumption down 25%, scrap rate down 85%. The dynamic-modelling investment paid back in six months.</p>
+  <div class="callout green"><strong>Why feedforward wins.</strong>Feedback alone cannot anticipate inertial or gravitational forces — it only reacts. Feedforward from inverse dynamics cancels them before they become tracking errors.</div>
+</section>
+
+<section class="card" id="forward-vs-inverse">
+  <h2><span class="badge">4</span>Forward vs. inverse dynamics</h2>
+  <p>Robot dynamics naturally splits into two complementary problem classes. Both use the same physics — they just point in opposite directions.</p>
+  <p><strong>Forward dynamics</strong> answers <em>prediction</em>: given the torques I apply, what motion results? It's the simulation problem — solve for $\ddot{\mathbf{q}}$ given $\boldsymbol{\tau}$.</p>
+  <p><strong>Inverse dynamics</strong> answers <em>planning</em>: given the motion I want, what torques do I need? It's the control problem — solve for $\boldsymbol{\tau}$ given $\mathbf{q}, \dot{\mathbf{q}}, \ddot{\mathbf{q}}$.</p>
+  <table>
+    <thead>
+      <tr><th>Aspect</th><th>Forward</th><th>Inverse</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Given</td><td>Torques $\boldsymbol{\tau}(t)$</td><td>Trajectory $\mathbf{q}, \dot{\mathbf{q}}, \ddot{\mathbf{q}}$</td></tr>
+      <tr><td>Find</td><td>Accelerations $\ddot{\mathbf{q}}(t)$</td><td>Torques $\boldsymbol{\tau}(t)$</td></tr>
+      <tr><td>Use</td><td>Simulation, verification</td><td>Control design, actuator sizing</td></tr>
+      <tr><td>Cost</td><td>High (matrix inversion)</td><td>Moderate (direct evaluation)</td></tr>
+    </tbody>
+  </table>
+  <p>A 7-DOF surgical robot uses both: <strong>inverse dynamics</strong> for pre-operative trajectory planning and feedforward control, <strong>forward dynamics</strong> for real-time safety monitoring — predicting motion under current inputs and flagging discrepancies that might indicate unexpected tissue contact.</p>
+  <div class="callout purple"><strong>They work together.</strong>In real systems the two are complementary: inverse dynamics drives the feedforward command, forward dynamics validates the result and watches for anomalies.</div>
+  <div class="code-block">
+    <div class="code-label">Forward dynamics — solve for accelerations</div>
+    <pre><code>q̈ = D⁻¹(q) [ τ − h(q, q̇) − c(q) ]</code></pre>
+  </div>
+  <div class="code-block">
+    <div class="code-label">Inverse dynamics — solve for torques</div>
+    <pre><code>τ = D(q) q̈ + h(q, q̇) + c(q)</code></pre>
+  </div>
+
+  <p class="widget-lead">The two directions of dynamics solve the <em>same</em> equation but with opposite knowns and unknowns: forward dynamics solves $\ddot{\mathbf{q}} = \mathbf{D}^{-1}[\boldsymbol{\tau} - \mathbf{h} - \mathbf{c}]$ for motion given torque, while inverse dynamics solves $\boldsymbol{\tau} = \mathbf{D}\ddot{\mathbf{q}} + \mathbf{h} + \mathbf{c}$ for torque given a planned trajectory. In the picker below, read each engineering task and choose which direction it requires; the widget will rearrange the equation to highlight the unknown. After all four tasks you should be able to recognise the surgical-robot pattern of using <em>both</em> — inverse for feedforward planning, forward for real-time safety monitoring.</p>
+  <div class="widget">
+    <div class="widget-header">
+      <h3 class="widget-title">Pick the right direction · forward or inverse dynamics?</h3>
+      <span class="widget-tag">activity</span>
+    </div>
+    <div class="widget-body">
+      <div id="forward-vs-inverse-picker"></div>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="fundamental-equation">
+  <h2><span class="badge">5</span>The fundamental equation of robot motion</h2>
+  <p>Every dynamic analysis in this course rests on one equation:</p>
+  <p style="text-align:center; font-size:1.05rem;">$\boldsymbol{\tau} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})$</p>
+  <p>Where:</p>
+  <ul>
+    <li>$\boldsymbol{\tau}$ — $n \times 1$ vector of joint torques (or forces, for prismatic joints)</li>
+    <li>$\mathbf{D}(\mathbf{q})$ — $n \times n$ <strong>inertia matrix</strong>, symmetric and positive definite</li>
+    <li>$\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})$ — $n \times 1$ vector of <strong>Coriolis and centrifugal</strong> terms</li>
+    <li>$\mathbf{c}(\mathbf{q})$ — $n \times 1$ vector of <strong>gravitational</strong> forces</li>
+  </ul>
+  <p>Learn to read this equation physically. The $\mathbf{D}\ddot{\mathbf{q}}$ term is 'mass times acceleration' for the whole arm — but the mass is a <em>matrix</em> because joints are coupled. The $\mathbf{h}$ term is the price you pay for <em>moving</em> — Coriolis from joint–joint interaction, centrifugal from a joint's own motion. The $\mathbf{c}$ term is just gravity, and depends only on configuration.</p>
+  <div class="callout green"><strong>Read it physically.</strong>$\mathbf{D}\ddot{\mathbf{q}}$ = inertia × acceleration. $\mathbf{h}$ = velocity-dependent forces. $\mathbf{c}$ = gravity. Three terms, three sources of torque demand.</div>
+
+  <p class="widget-lead">This section names the three sources of joint torque demand: $\mathbf{D}(\mathbf{q})\ddot{\mathbf{q}}$ (inertia × acceleration, with off-diagonal coupling), $\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})$ (Coriolis from joint–joint interaction plus centrifugal from a joint's own velocity), and $\mathbf{c}(\mathbf{q})$ (gravity, posture-only). In the builder below you place exactly the contributions present in three test scenarios — a static held pose, a pure acceleration from rest, and a steady curved sweep — onto a 2-DOF arm, and the widget assembles your $\boldsymbol{\tau}$ vector. You should leave able to predict, before doing any maths, which of the three terms vanish in any given operating regime.</p>
+  <div class="widget">
+    <div class="widget-header">
+      <h3 class="widget-title">Build the torque · assemble $\mathbf{D}\ddot{\mathbf{q}} + \mathbf{h} + \mathbf{c}$ from physical contributions</h3>
+      <span class="widget-tag tag-warm">practice</span>
+    </div>
+    <div class="widget-body">
+      <div id="equation-builder"></div>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="matrix-properties">
+  <h2><span class="badge">6</span>Properties of the dynamic matrices</h2>
+  <p>The matrices in the equation of motion aren't arbitrary — they have structural properties that we exploit constantly in control design.</p>
+  <p><strong>Inertia matrix $\mathbf{D}(\mathbf{q})$.</strong> Symmetric and positive definite: $\mathbf{D} = \mathbf{D}^T$ and $\mathbf{x}^T \mathbf{D} \mathbf{x} > 0$ for all $\mathbf{x} \neq 0$. This guarantees energy conservation and underpins stability proofs. It changes with configuration; off-diagonal entries are inertial coupling between joints.</p>
+  <p><strong>Coriolis/centrifugal $\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})$.</strong> Quadratic in velocity: $\mathbf{h}(\mathbf{q}, \alpha\dot{\mathbf{q}}) = \alpha^2 \mathbf{h}(\mathbf{q}, \dot{\mathbf{q}})$. Often written as $\mathbf{C}(\mathbf{q}, \dot{\mathbf{q}})\dot{\mathbf{q}}$. The matrix $\dot{\mathbf{D}} - 2\mathbf{C}$ is <strong>skew-symmetric</strong> — a <em>passivity</em> property that's gold for nonlinear control design.</p>
+  <p><strong>Gravity $\mathbf{c}(\mathbf{q})$.</strong> Position-dependent only — independent of velocity. It's a conservative force, derivable from a potential energy function. Bounded for any finite configuration.</p>
+  <div class="callout teal"><strong>Skew-symmetry = passivity.</strong>$\dot{\mathbf{D}} - 2\mathbf{C}$ being skew-symmetric is the property that makes passivity-based control of robots possible. Remember it.</div>
+  <div class="callout blue"><strong>Boundedness.</strong>$\mathbf{D}$ is bounded above and below; $\mathbf{h}$ is bounded by quadratics in velocity; $\mathbf{c}$ is bounded for any finite pose. These bounds are the basis for robustness analysis.</div>
+</section>
+
+<section class="card" id="control-integration">
+  <h2><span class="badge">7</span>How dynamics plugs into a control system</h2>
+  <p>Dynamic modelling and control design are symbiotic — better models enable better control. A typical robot control architecture looks like this:</p>
+  <ol>
+    <li><strong>Trajectory planner</strong> generates the desired motion: $\mathbf{q}_d(t), \dot{\mathbf{q}}_d(t), \ddot{\mathbf{q}}_d(t)$.</li>
+    <li><strong>Inverse dynamics (feedforward)</strong> computes $\boldsymbol{\tau}_{ff} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}}_d + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})$.</li>
+    <li><strong>Feedback controller</strong> adds corrective torques $\boldsymbol{\tau}_{fb}$ from tracking error.</li>
+    <li><strong>Total command:</strong> $\boldsymbol{\tau}_{total} = \boldsymbol{\tau}_{ff} + \boldsymbol{\tau}_{fb}$.</li>
+    <li><strong>Plant (forward dynamics)</strong> — the actual robot — responds with real motion.</li>
+  </ol>
+  <p>Feedforward does the <em>heavy lifting</em>; feedback only mops up the uncertainties (model errors, disturbances, payload changes). Without an accurate dynamic model, feedback has to do everything itself, which is why model-free controllers tend to be sluggish, overshoot, or chatter at high gains.</p>
+  <div class="callout green"><strong>The model is leverage.</strong>Every newton-metre that feedforward delivers correctly is a newton-metre that feedback doesn't have to chase. Better model → less feedback gain needed → better stability margin.</div>
+  <div class="code-block">
+    <div class="code-label">Computed-torque control law</div>
+    <pre><code>τ_ff   = D(q) q̈_d + h(q, q̇) + c(q)     # feedforward (inverse dynamics)
+τ_fb   = K_p e + K_d ė                    # feedback on tracking error
+τ_cmd  = τ_ff + τ_fb                      # total joint command</code></pre>
+  </div>
+
+  <p class="widget-lead">This section frames computed-torque control as a five-stage loop: planner → feedforward (inverse dynamics) → feedback → summed command → plant (forward dynamics). The animator below steps through one control tick on a 2-DOF arm and lets you toggle the feedforward branch on or off, with a live readout of tracking error $e = \mathbf{q}_d - \mathbf{q}$ and required feedback torque. Switch off feedforward and notice the same trajectory now demands much larger feedback torques — that is exactly the <em>leverage</em> the section calls out: every newton-metre delivered correctly by $\mathbf{D}\ddot{\mathbf{q}}_d + \mathbf{h} + \mathbf{c}$ is one fewer that feedback has to chase.</p>
+  <div class="widget">
+    <div class="widget-header">
+      <h3 class="widget-title">Animated computed-torque loop · feedforward predicts, feedback corrects</h3>
+      <span class="widget-tag tag-violet">live</span>
+    </div>
+    <div class="widget-body">
+      <div id="computed-torque-animator"></div>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="summary-roadmap">
+  <h2><span class="badge">8</span>Summary and roadmap</h2>
+  <p>You now have the conceptual scaffolding for the rest of the course. The fundamental equation $\boldsymbol{\tau} = \mathbf{D}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{h}(\mathbf{q},\dot{\mathbf{q}}) + \mathbf{c}(\mathbf{q})$ is the spine — every subsequent module either derives it, exploits its structure, or applies it.</p>
+  <p><strong>What's coming next:</strong></p>
+  <ul>
+    <li><strong>Module 2</strong> — energy-based formulation using Lagrangian mechanics.</li>
+    <li><strong>Module 3</strong> — full mathematical derivation of the dynamic equations.</li>
+    <li><strong>Module 4</strong> — Lagrangian formulation specialised to robotic manipulators.</li>
+  </ul>
+  <p><strong>Self-check.</strong> Can you explain to a colleague:</p>
+  <ul>
+    <li>Why robot dynamics is more complex than single-body Newton's law?</li>
+    <li>When you would use forward vs. inverse dynamics?</li>
+    <li>What each of $\mathbf{D}$, $\mathbf{h}$, $\mathbf{c}$ physically represents?</li>
+  </ul>
+  <p>If yes — you're ready for Module 2.</p>
+  <div class="callout amber"><strong>Prerequisites to refresh.</strong>Transformation matrices and Jacobians (kinematics), matrix calculus and ODEs (maths), Newton's laws and energy conservation (physics), and basic numerical computing in MATLAB or Python.</div>
+</section>
+
+</main>
+
+<aside class="lecture-side">
+  <nav class="lecture-toc" aria-label="Lecture contents">
+    <p class="toc-eyebrow">On this page</p>
+    <ol>
+      <li><a href="#overview">0 · What this lecture covers</a></li>
+      <li><a href="#kinematics-to-dynamics">1 · From kinematics to dynamics</a></li>
+      <li><a href="#why-dynamics-matters">2 · Why dynamic modelling is non-negotiable</a></li>
+      <li><a href="#case-study-welding">3 · Case study: automotive welding robot</a></li>
+      <li><a href="#forward-vs-inverse">4 · Forward vs. inverse dynamics</a></li>
+      <li><a href="#fundamental-equation">5 · The fundamental equation of robot motion</a></li>
+      <li><a href="#matrix-properties">6 · Properties of the dynamic matrices</a></li>
+      <li><a href="#control-integration">7 · How dynamics plugs into a control system</a></li>
+      <li><a href="#summary-roadmap">8 · Summary and roadmap</a></li>
+    </ol>
+  </nav>
+</aside>
+
+</article>
+
+<footer class="lecture-footer">
+  TSI · Robot Dynamics · Lecture 01 · <a href="../">all lectures</a>
+</footer>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useEffect, useRef, useMemo } = React;
+
+/* ─────────────────────────── Widget 1: WhyDynamicsPicker ─────────────────────────── */
+function WhyDynamicsPicker() {
+  const SCENARIOS = [
+    {
+      id: 'sagging-arm',
+      label: 'Sagging arm',
+      prompt: 'A 6-DOF arm holds a tool at full horizontal reach. With motors energised but no commanded motion, the tip droops by 4 mm. Which effect dominates?',
+      options: [
+        { label: String.raw`Gravitational loading $\mathbf{c}(\mathbf{q})$`, correct: true,  highlight: 'c',
+          feedback: String.raw`Right — $\mathbf{c}(\mathbf{q})$ is position-only and produces a configuration-dependent static torque. Horizontal reach maximises the moment arm, so droop is large.` },
+        { label: String.raw`Inertial coupling $\mathbf{D}(\mathbf{q})\ddot{\mathbf{q}}$`, correct: false, highlight: 'D',
+          feedback: String.raw`No — there is no commanded acceleration. $\mathbf{D}\ddot{\mathbf{q}}$ vanishes when $\ddot{\mathbf{q}}=0$.` },
+        { label: String.raw`Coriolis/centrifugal $\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})$`, correct: false, highlight: 'h',
+          feedback: String.raw`No — $\mathbf{h}$ is quadratic in velocity and the arm is not moving.` },
+        { label: 'Friction at the gearbox', correct: false, highlight: null,
+          feedback: 'Friction matters but does not explain a posture-dependent steady-state droop. Gravity is the dominant term.' }
+      ]
+    },
+    {
+      id: 'curved-path-drift',
+      label: 'Curved drift',
+      prompt: 'During a 1.5 m/s curved weld, joints 2 and 3 move simultaneously and the tool drifts off path by ~0.3 mm even though gravity is already cancelled. Which effect dominates?',
+      options: [
+        { label: String.raw`Coriolis/centrifugal $\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})$`, correct: true, highlight: 'h',
+          feedback: String.raw`Correct — joint–joint interaction at speed is exactly what $\mathbf{h}$ captures, and at 1.5 m/s it can demand 20–30 % of actuator capacity.` },
+        { label: String.raw`Gravitational $\mathbf{c}(\mathbf{q})$`, correct: false, highlight: 'c',
+          feedback: 'Gravity is already compensated in the scenario; the residual at speed is velocity-dependent.' },
+        { label: String.raw`Pure inertia $\mathbf{D}(\mathbf{q})\ddot{\mathbf{q}}$`, correct: false, highlight: 'D',
+          feedback: 'Inertia explains acceleration-driven errors, but the symptom is path drift on a curved trajectory at constant speed — that is a velocity coupling effect.' },
+        { label: 'Backlash in the reducer', correct: false, highlight: null,
+          feedback: 'Possible secondary cause but not the dominant one for path-shape-dependent error during simultaneous joint motion.' }
+      ]
+    },
+    {
+      id: 'stall-in-pose',
+      label: 'Pose-dependent stall',
+      prompt: 'A motor easily slews the arm when the elbow is folded, but stalls executing the same commanded acceleration when the arm is fully extended. Payload is unchanged. Which effect dominates?',
+      options: [
+        { label: String.raw`Configuration-dependent inertia in $\mathbf{D}(\mathbf{q})$`, correct: true, highlight: 'D',
+          feedback: String.raw`Yes — the entries of $\mathbf{D}$ depend on $\mathbf{q}$. An extended arm presents far higher effective inertia at the base joint than a folded one.` },
+        { label: String.raw`Coriolis/centrifugal $\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})$`, correct: false, highlight: 'h',
+          feedback: String.raw`$\mathbf{h}$ is velocity-dependent. Same commanded $\ddot{\mathbf{q}}$ in two poses isolates a posture effect on the inertia, not on velocity terms.` },
+        { label: String.raw`Gravitational $\mathbf{c}(\mathbf{q})$`, correct: false, highlight: 'c',
+          feedback: String.raw`Gravity changes with pose too, but the failure mode here is acceleration capacity, not static torque — that points at $\mathbf{D}$.` },
+        { label: 'Motor saturation by payload', correct: false, highlight: null,
+          feedback: 'The payload is unchanged. The cause has to be a posture-dependent term in the equation of motion.' }
+      ]
+    },
+    {
+      id: 'overshoot-rapid',
+      label: 'Overshoot',
+      prompt: 'On a rapid point-to-point move, the robot overshoots its target. Pure position feedback only catches up too late. Which compensation term added as feedforward fixes it most directly?',
+      options: [
+        { label: String.raw`Inertia term $\mathbf{D}(\mathbf{q})\ddot{\mathbf{q}}_d$`, correct: true, highlight: 'D',
+          feedback: String.raw`Right — overshoot during acceleration is the inertia force the controller failed to anticipate. Feedforward $\mathbf{D}\ddot{\mathbf{q}}_d$ pre-applies it.` },
+        { label: String.raw`Gravity term $\mathbf{c}(\mathbf{q})$`, correct: false, highlight: 'c',
+          feedback: 'Gravity compensation removes static droop, not acceleration-driven overshoot.' },
+        { label: String.raw`Coriolis term $\mathbf{h}(\mathbf{q},\dot{\mathbf{q}})$`, correct: false, highlight: 'h',
+          feedback: 'Helpful in curved high-speed motion, but a single rapid acceleration event is dominated by inertia.' },
+        { label: String.raw`Higher feedback gain $K_p$`, correct: false, highlight: null,
+          feedback: String.raw`Cranking $K_p$ trades overshoot for instability. The clean fix is a model-based feedforward.` }
+      ]
+    }
+  ];
+
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [picked, setPicked] = useState({}); // { scenarioId: optionIdx }
+
+  const sc = SCENARIOS[activeIdx];
+  const pickIdx = picked[sc.id];
+  const pickedOpt = pickIdx != null ? sc.options[pickIdx] : null;
+  const hot = pickedOpt && pickedOpt.correct ? pickedOpt.highlight : null;
+
+  function choose(i) {
+    if (picked[sc.id] != null) return;
+    setPicked({ ...picked, [sc.id]: i });
+  }
+
+  const correctCount = SCENARIOS.filter(s => {
+    const p = picked[s.id];
+    return p != null && s.options[p].correct;
+  }).length;
+
+  return (
+    <div>
+      <div className="eq-bar" aria-label="equation of motion">
+        <span className="eq-term">τ</span>
+        <span className="eq-eq">=</span>
+        <span className={'eq-term' + (hot === 'D' ? ' is-hot' : '')}>D(q) q̈</span>
+        <span className="eq-eq">+</span>
+        <span className={'eq-term' + (hot === 'h' ? ' is-hot' : '')}>h(q, q̇)</span>
+        <span className="eq-eq">+</span>
+        <span className={'eq-term' + (hot === 'c' ? ' is-hot' : '')}>c(q)</span>
+      </div>
+
+      <div className="pick-tabs">
+        {SCENARIOS.map((s, i) => {
+          const done = picked[s.id] != null;
+          return (
+            <button key={s.id}
+                    className={'pick-tab' + (i === activeIdx ? ' is-active' : '') + (done ? ' done' : '')}
+                    onClick={() => setActiveIdx(i)}>
+              {i + 1}. {s.label}{done ? ' ✓' : ''}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="scen-prompt">{sc.prompt}</div>
+
+      <div className="opt-grid cols-2">
+        {sc.options.map((o, i) => {
+          const isPicked = pickIdx === i;
+          const decided = pickIdx != null;
+          let cls = 'opt-btn';
+          if (isPicked) cls += o.correct ? ' is-correct' : ' is-wrong';
+          else if (decided) cls += ' is-disabled';
+          return (
+            <button key={i} className={cls} onClick={() => choose(i)} disabled={decided && !isPicked}>
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {pickedOpt && (
+        <div className={'opt-feedback ' + (pickedOpt.correct ? 'good' : 'bad')}>
+          {pickedOpt.feedback}
+        </div>
+      )}
+
+      <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.85rem', color: '#475569' }}>Diagnosed correctly: <strong>{correctCount} / {SCENARIOS.length}</strong></span>
+        <button className="btn secondary" onClick={() => { setPicked({}); setActiveIdx(0); }}>↺ Reset all</button>
       </div>
     </div>
-  </nav>
+  );
+}
 
-  <article class="lecture">
-    <main class="lecture-main">
+/* ─────────────────────────── Widget 2: ForwardInversePicker ─────────────────────────── */
+function ForwardInversePicker() {
+  const TASKS = [
+    {
+      id: 'feedforward-weld',
+      label: 'Welder feedforward',
+      prompt: "You're computing the torque the welding-robot controller must pre-apply at every time step so the tip tracks a planned 1.5 m/s curve.",
+      options: [
+        { label: 'Inverse dynamics', correct: true,
+          feedback: String.raw`Right — trajectory $(\mathbf{q}_d,\dot{\mathbf{q}}_d,\ddot{\mathbf{q}}_d)$ is given, $\boldsymbol{\tau}_{ff}$ is the unknown. This is feedforward control.` },
+        { label: 'Forward dynamics', correct: false,
+          feedback: 'Forward gives motion from torque; here motion is already specified and you need the torque to produce it.' }
+      ]
+    },
+    {
+      id: 'sim-controller',
+      label: 'Simulate controller',
+      prompt: 'Before deploying a new controller on hardware, you want to simulate how the robot will respond to its commanded torque profile.',
+      options: [
+        { label: 'Forward dynamics', correct: true,
+          feedback: String.raw`Yes — torque is given by the controller, the simulator integrates $\ddot{\mathbf{q}} = \mathbf{D}^{-1}[\boldsymbol{\tau} - \mathbf{h} - \mathbf{c}]$ to predict motion.` },
+        { label: 'Inverse dynamics', correct: false,
+          feedback: 'Inverse would assume the motion is already known. In simulation, motion is what you are trying to find.' }
+      ]
+    },
+    {
+      id: 'actuator-sizing',
+      label: 'Size the motor',
+      prompt: "You're sizing the motor for joint 2 of a new arm. You know the worst-case payload, the tightest desired trajectory, and need the peak joint torque the motor must deliver.",
+      options: [
+        { label: 'Inverse dynamics', correct: true,
+          feedback: String.raw`Correct — the trajectory is the spec; $\boldsymbol{\tau}$ is the unknown. Peak inverse-dynamics torque sets the motor rating.` },
+        { label: 'Forward dynamics', correct: false,
+          feedback: 'Forward dynamics tells you what motion a given motor produces — not the right tool when the spec is the motion.' }
+      ]
+    },
+    {
+      id: 'surgical-monitor',
+      label: 'Surgical monitor',
+      prompt: 'A surgical robot is mid-procedure. The supervisor process must check, in real time, whether the actual joint motion matches what the applied torques should be producing — to detect unexpected tissue contact.',
+      options: [
+        { label: 'Forward dynamics', correct: true,
+          feedback: 'Right — applied torque is the input, predicted motion is the output, and the discrepancy from measured motion flags contact. This is the safety-monitor pattern.' },
+        { label: 'Inverse dynamics', correct: false,
+          feedback: 'Inverse dynamics is what commanded the planned motion; the discrepancy check needs the predictive direction.' }
+      ]
+    }
+  ];
 
-      <header class="lecture-header">
-        <div class="lecture-eyebrow">Lecture 22 · Module 5</div>
-        <h1 class="lecture-title">Introduction to robot dynamics</h1>
-        <p class="lecture-subtitle">
-          Twenty-one lectures of kinematics gave us the geometry of motion. Dynamics asks the next
-          question: <em>what forces and torques cause this motion?</em> The whole rest of this course
-          — actuator sizing, motion control, energy budgets — depends on the answer.
-        </p>
-      </header>
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [picked, setPicked] = useState({});
 
-      <section class="lecture-section" id="why">
-        <h2>Kinematics tells you where, dynamics tells you how</h2>
-        <div class="prose">
-          <div class="voice">
-            <p>Kinematics is the map. It tells you the route from A to B and where every joint is along the way. Dynamics is the engine, the fuel, and the terrain. It tells you how much torque each motor needs, when the arm will overshoot, and whether the trajectory is even physically possible. You can plan a beautiful path with kinematics alone, but the moment you ask a real motor to track it, dynamics shows up.</p>
-          </div>
-          <p>
-            You already know how to compute end-effector positions, solve inverse kinematics, build
-            Jacobians, and animate trajectories. None of that has touched mass, inertia, gravity, or
-            torque. That's the gap dynamics fills. The relationship is hierarchical: dynamics
-            <em>contains</em> kinematics — the equations of motion still need positions, velocities,
-            and accelerations as inputs — but it adds physical reality on top.
-          </p>
-          <p>
-            Three concrete questions kinematics cannot answer, and dynamics can:
-          </p>
-          <ul>
-            <li><strong>Actuator sizing.</strong> What peak torque does joint 2 need to swing a 5 kg payload from rest to 1 m/s in 0.4 s?</li>
-            <li><strong>Why does it overshoot?</strong> A robot with a perfectly tuned PD controller still oscillates when payload changes. Where does the wobble come from?</li>
-            <li><strong>Energy.</strong> How much electrical power does the cell consume per pick-and-place cycle, and how do I cut it?</li>
-          </ul>
+  const t = TASKS[activeIdx];
+  const pickIdx = picked[t.id];
+  const pickedOpt = pickIdx != null ? t.options[pickIdx] : null;
+  const direction = pickedOpt && pickedOpt.correct ? pickedOpt.label : null;
+
+  function choose(i) {
+    if (picked[t.id] != null) return;
+    setPicked({ ...picked, [t.id]: i });
+  }
+
+  const correctCount = TASKS.filter(x => {
+    const p = picked[x.id];
+    return p != null && x.options[p].correct;
+  }).length;
+
+  // Equation rearranger
+  let eqLeft, eqRight, unknownLabel;
+  if (direction === 'Inverse dynamics') {
+    eqLeft = 'τ'; eqRight = 'D(q) q̈ + h(q, q̇) + c(q)'; unknownLabel = 'unknown: τ';
+  } else if (direction === 'Forward dynamics') {
+    eqLeft = 'q̈'; eqRight = 'D⁻¹(q) [ τ − h(q, q̇) − c(q) ]'; unknownLabel = 'unknown: q̈';
+  } else {
+    eqLeft = 'τ'; eqRight = 'D(q) q̈ + h(q, q̇) + c(q)'; unknownLabel = 'pick a direction →';
+  }
+
+  return (
+    <div>
+      <div className="eq-bar">
+        <span className={'eq-term' + (direction ? ' is-hot' : '')}>{eqLeft}</span>
+        <span className="eq-eq">=</span>
+        <span className="eq-term">{eqRight}</span>
+        <span style={{ marginLeft: 12, fontFamily: 'var(--sans)', fontSize: '0.8rem', color: '#475569' }}>{unknownLabel}</span>
+      </div>
+
+      <div className="pick-tabs">
+        {TASKS.map((x, i) => {
+          const done = picked[x.id] != null;
+          return (
+            <button key={x.id}
+                    className={'pick-tab' + (i === activeIdx ? ' is-active' : '') + (done ? ' done' : '')}
+                    onClick={() => setActiveIdx(i)}>
+              {i + 1}. {x.label}{done ? ' ✓' : ''}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="scen-prompt">{t.prompt}</div>
+
+      <div className="opt-grid cols-2">
+        {t.options.map((o, i) => {
+          const isPicked = pickIdx === i;
+          const decided = pickIdx != null;
+          let cls = 'opt-btn';
+          if (isPicked) cls += o.correct ? ' is-correct' : ' is-wrong';
+          else if (decided) cls += ' is-disabled';
+          return (
+            <button key={i} className={cls} onClick={() => choose(i)} disabled={decided && !isPicked}
+                    style={{ textAlign: 'center', fontWeight: 600 }}>
+              {o.label === 'Forward dynamics' ? '→ ' : '← '}{o.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {pickedOpt && (
+        <div className={'opt-feedback ' + (pickedOpt.correct ? 'good' : 'bad')}>
+          {pickedOpt.feedback}
         </div>
-      </section>
+      )}
 
-      <section class="lecture-section" id="see-it">
-        <h2>See the difference: kinematics vs computed-torque</h2>
-        <div class="prose">
-          <div class="voice">
-            <p>The widget below runs the same trajectory on two arms with identical hardware and identical gains. The only difference is what the controller knows. The left controller treats the robot like a kinematic skeleton — pure proportional-derivative on joint errors, the way every textbook teaches first. The right controller knows about D, h, c. Watch what happens when you push the period down or load up the tip mass.</p>
-          </div>
-          <p>
-            Both arms are 2-link planar arms with point masses at the elbow and tip. Both are commanded
-            to swing back and forth between the same two configurations. Both share the same K<sub>p</sub>
-            and K<sub>v</sub> gains. The dashed circles mark the target positions for the end-effector at
-            this instant.
-          </p>
-          <p>
-            The <span style="color:#a83232; font-weight:600">left arm (red)</span> uses
-            <strong>τ = K<sub>p</sub>·e + K<sub>v</sub>·ė</strong> — feedback only. The
-            <span style="color:#1f6f3a; font-weight:600">right arm (green)</span> uses the
-            <strong>computed-torque</strong> law:
-          </p>
+      <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.85rem', color: '#475569' }}>Decided correctly: <strong>{correctCount} / {TASKS.length}</strong></span>
+        <button className="btn secondary" onClick={() => { setPicked({}); setActiveIdx(0); }}>↺ Reset all</button>
+      </div>
+
+      {correctCount === TASKS.length && (
+        <div className="opt-feedback good" style={{ marginTop: 10 }}>
+          Notice the surgical robot uses both: <strong>inverse</strong> dynamics for pre-op trajectory planning and feedforward, <strong>forward</strong> dynamics for real-time motion verification.
         </div>
+      )}
+    </div>
+  );
+}
 
-        <div class="math-display" id="ct-law"></div>
+/* ─────────────────────────── Widget 3: EquationBuilder ─────────────────────────── */
+function EquationBuilder() {
+  const BLOCKS = [
+    { id: 'inertia-diag', label: 'D_ii q̈_i', long: 'diagonal inertia', cls: 'blk-D', term: 'D' },
+    { id: 'inertia-off',  label: 'D_ij q̈_j', long: 'off-diagonal coupling (i≠j)', cls: 'blk-D', term: 'D' },
+    { id: 'centrifugal',  label: 'h: q̇_j²', long: 'centrifugal', cls: 'blk-h', term: 'h' },
+    { id: 'coriolis',     label: 'h: q̇_i q̇_j', long: 'Coriolis', cls: 'blk-h', term: 'h' },
+    { id: 'gravity',      label: 'c(q)', long: 'gravity', cls: 'blk-c', term: 'c' }
+  ];
 
-        <div class="prose">
-          <p>
-            That second equation is what this whole module is going to derive, term by term. For now,
-            just feel the difference.
-          </p>
+  const SCENARIOS = [
+    {
+      id: 'static-hold',
+      label: 'Static hold',
+      desc: 'q = (60°,30°), q̇ = 0, q̈ = 0',
+      required: ['gravity'],
+      forbidden: ['inertia-diag', 'inertia-off', 'centrifugal', 'coriolis'],
+      win: 'Correct — only c(q) survives. Both D q̈ and h vanish.'
+    },
+    {
+      id: 'pure-accel',
+      label: 'Pure acceleration',
+      desc: 'q̇ = 0, q̈ ≠ 0',
+      required: ['inertia-diag', 'inertia-off', 'gravity'],
+      forbidden: ['centrifugal', 'coriolis'],
+      win: 'Correct — h is quadratic in velocity, so it is zero at q̇ = 0. Inertia and gravity remain, including off-diagonal coupling.'
+    },
+    {
+      id: 'steady-sweep',
+      label: 'Steady sweep',
+      desc: 'q̈ = 0, q̇ ≠ 0',
+      required: ['centrifugal', 'coriolis', 'gravity'],
+      forbidden: ['inertia-diag', 'inertia-off'],
+      win: 'Correct — at constant joint rates, D q̈ = 0, but Coriolis, centrifugal, and gravity all stay.'
+    }
+  ];
+
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [build, setBuild] = useState({ 'static-hold': [], 'pure-accel': [], 'steady-sweep': [] });
+
+  const sc = SCENARIOS[activeIdx];
+  const cur = build[sc.id];
+
+  function toggle(blockId) {
+    const exists = cur.includes(blockId);
+    const next = exists ? cur.filter(x => x !== blockId) : [...cur, blockId];
+    setBuild({ ...build, [sc.id]: next });
+  }
+  function reset() {
+    setBuild({ ...build, [sc.id]: [] });
+  }
+
+  // Validate
+  const missing = sc.required.filter(r => !cur.includes(r));
+  const extras  = cur.filter(c => sc.forbidden.includes(c));
+  const won = missing.length === 0 && extras.length === 0 && cur.length > 0;
+
+  // Build status
+  let status, statusCls;
+  if (cur.length === 0) {
+    status = 'Click contributions from the palette to assemble τ for this scenario.';
+    statusCls = 'idle';
+  } else if (won) {
+    status = '✓ ' + sc.win;
+    statusCls = 'ok';
+  } else if (extras.length > 0) {
+    status = 'A term you placed vanishes in this scenario — check whether it depends on q̇ or q̈.';
+    statusCls = 'warn';
+  } else {
+    status = "You're missing at least one term that this scenario actually generates.";
+    statusCls = 'warn';
+  }
+
+  // Symbolic τ readout
+  const symbolic = (() => {
+    if (cur.length === 0) return 'τ = ?';
+    const Dterms = cur.filter(b => BLOCKS.find(x => x.id === b).term === 'D').map(b => BLOCKS.find(x => x.id === b).label);
+    const hterms = cur.filter(b => BLOCKS.find(x => x.id === b).term === 'h').map(b => BLOCKS.find(x => x.id === b).label);
+    const cterms = cur.filter(b => BLOCKS.find(x => x.id === b).term === 'c').map(b => BLOCKS.find(x => x.id === b).label);
+    const parts = [];
+    if (Dterms.length) parts.push(Dterms.join(' + '));
+    if (hterms.length) parts.push(hterms.join(' + '));
+    if (cterms.length) parts.push(cterms.join(' + '));
+    return 'τ = ' + parts.join(' + ');
+  })();
+
+  const wonAll = SCENARIOS.every(s => {
+    const c = build[s.id];
+    const m = s.required.filter(r => !c.includes(r));
+    const e = c.filter(x => s.forbidden.includes(x));
+    return m.length === 0 && e.length === 0 && c.length > 0;
+  });
+
+  return (
+    <div>
+      <div className="pick-tabs">
+        {SCENARIOS.map((s, i) => {
+          const c = build[s.id];
+          const m = s.required.filter(r => !c.includes(r));
+          const e = c.filter(x => s.forbidden.includes(x));
+          const done = m.length === 0 && e.length === 0 && c.length > 0;
+          return (
+            <button key={s.id}
+                    className={'pick-tab' + (i === activeIdx ? ' is-active' : '') + (done ? ' done' : '')}
+                    onClick={() => setActiveIdx(i)}>
+              {i + 1}. {s.label}{done ? ' ✓' : ''}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="scen-prompt">
+        <strong>{sc.label}.</strong> {sc.desc}
+      </div>
+
+      <h4 style={{ margin: '14px 0 4px', fontSize: '0.85rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Palette · click to add or remove</h4>
+      <div className="blocks-palette">
+        {BLOCKS.map(b => {
+          const inb = cur.includes(b.id);
+          return (
+            <button key={b.id}
+                    className={'blk ' + b.cls + (inb ? ' in-build' : '')}
+                    onClick={() => toggle(b.id)}
+                    title={b.long}>
+              {inb ? '− ' : '+ '}{b.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <h4 style={{ margin: '14px 0 4px', fontSize: '0.85rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your assembled τ</h4>
+      <div className={'build-zone' + (cur.length === 0 ? ' empty' : '')}>
+        {cur.length === 0 ? 'no contributions yet'
+          : cur.map(id => {
+              const b = BLOCKS.find(x => x.id === id);
+              return <span key={id} className={'blk ' + b.cls}>{b.label}</span>;
+            })}
+      </div>
+      <div className="build-summary">{symbolic}</div>
+
+      <div className={'scen-status ' + statusCls}>{status}</div>
+
+      <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.85rem', color: '#475569' }}>Scenarios solved: <strong>{SCENARIOS.filter(s => {
+          const c = build[s.id];
+          const m = s.required.filter(r => !c.includes(r));
+          const e = c.filter(x => s.forbidden.includes(x));
+          return m.length === 0 && e.length === 0 && c.length > 0;
+        }).length} / {SCENARIOS.length}</strong></span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn secondary" onClick={reset}>↺ Reset this scenario</button>
         </div>
+      </div>
 
-        <figure class="widget">
-          <header class="widget-header">
-            <span class="widget-title">Twin arms · same trajectory · different controllers</span>
-            <span class="widget-tag">forward dynamics · RK4</span>
-          </header>
-          <div class="widget-body">
-            <div data-dynamic-comparison></div>
-          </div>
-        </figure>
-
-        <div class="callout">
-          <div class="callout-title">Try this</div>
-          <p>
-            Hit Play with the defaults. Both arms track reasonably well — the difference is subtle.
-            Now drag <strong>Tip mass m<sub>2</sub></strong> up to 3 kg. The kinematic arm starts to
-            sag and overshoot at the turn-arounds while the computed-torque arm tracks like nothing
-            changed. Now drop the period to 0.7 s — fast motion. The kinematic arm goes wild.
-            Notice the torque plot: the kinematic controller spikes after the error appears (reactive),
-            while the computed-torque law commits the right torques up front (predictive).
-          </p>
+      {wonAll && (
+        <div className="opt-feedback good" style={{ marginTop: 10 }}>
+          All three assembled. Notice the pattern: <strong>q̇ = 0 ⇒ h = 0</strong>, <strong>q̈ = 0 ⇒ Dq̈ = 0</strong>, and <strong>c(q) is always there in gravity</strong>.
         </div>
-      </section>
+      )}
+    </div>
+  );
+}
 
-      <section class="lecture-section" id="newton">
-        <h2>Newton's second law, but with coupling</h2>
-        <div class="prose">
-          <p>
-            Every dynamic system obeys F = ma. For a single rigid body, that's a one-line equation.
-            For an n-link manipulator it's a coupled, configuration-dependent system. Three things
-            make it complicated:
-          </p>
-          <ol>
-            <li><strong>Inertial coupling.</strong> Accelerating joint 1 doesn't just accelerate link 1 — it accelerates everything attached to it. The effective inertia at joint 1 changes with configuration: an extended arm presents more inertia than a folded one.</li>
-            <li><strong>Velocity-dependent forces.</strong> When two joints move simultaneously, Coriolis and centrifugal terms appear. They don't exist in static analysis but become substantial at high speed.</li>
-            <li><strong>Configuration-dependent gravity.</strong> Each link's gravitational torque depends on the orientation of every link before it.</li>
-          </ol>
-          <p>
-            All three live in one equation. The same one your computed-torque controller used above:
-          </p>
-        </div>
+/* ─────────────────────────── Widget 4: ComputedTorqueAnimator ─────────────────────────── */
+function ComputedTorqueAnimator() {
+  const STAGES = [
+    { id: 'plan',        title: '1. Trajectory plan',          detail: 'Planner emits q_d, q̇_d, q̈_d for this tick.' },
+    { id: 'feedforward', title: '2. Feedforward (inverse dyn)', detail: 'Compute τ_ff = D(q) q̈_d + h(q,q̇) + c(q) from the model.' },
+    { id: 'measure',     title: '3. Measure error',             detail: 'Read (q,q̇), form e = q_d − q and ė = q̇_d − q̇.' },
+    { id: 'feedback',    title: '4. Feedback correction',       detail: 'Compute τ_fb = K_p e + K_d ė to clean up disturbances.' },
+    { id: 'sum',         title: '5. Sum command',               detail: 'Apply τ_cmd = τ_ff + τ_fb to the joints.' },
+    { id: 'plant',       title: '6. Plant (forward dyn)',       detail: 'Robot integrates q̈ = D⁻¹[τ_cmd − h − c]; the world updates.' }
+  ];
 
-        <div class="math-display" id="eom"></div>
+  const PRESETS = [
+    { id: 'ff-on',        label: 'FF ON · accurate model', ff: 1.0, err: 0.04, fb: 0.06, desc: 'τ_ff active. Tracking error tiny; feedback is a corrective whisper.' },
+    { id: 'ff-off',       label: 'FF OFF · feedback only', ff: 0.0, err: 0.78, fb: 0.95, desc: 'τ_ff = 0. Feedback must produce ALL torque — including inertia, gravity, Coriolis. Tracking error grows.' },
+    { id: 'ff-imperfect', label: '20% model error',        ff: 0.8, err: 0.20, fb: 0.30, desc: 'Mass estimates off by 20%. Feedforward does most of the work; feedback handles the residual.' }
+  ];
 
-        <div class="prose">
-          <p>
-            That's the equation we will spend the rest of Module 5 deriving from first principles
-            (Lagrangian mechanics, lectures 23 to 26), implementing for a 2-link arm
-            (lecture 24, by hand), and then for a real industrial robot — the Mitsubishi MoveMaster RV-M1
-            (lecture 27, with proper inertia tensors).
-          </p>
-        </div>
-      </section>
+  const [step, setStep] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [presetIdx, setPresetIdx] = useState(0);
+  const preset = PRESETS[presetIdx];
 
-      <section class="lecture-section" id="forward-inverse">
-        <h2>Forward dynamics vs inverse dynamics</h2>
-        <div class="prose">
-          <div class="voice">
-            <p>The same equation goes two ways. Read it left to right and you get inverse dynamics — given the trajectory you want, compute the torques needed to produce it. Read it right to left and you get forward dynamics — given the torques the motors are applying, predict what the robot will do. Both are useful, in different parts of the pipeline.</p>
-          </div>
-        </div>
+  useEffect(() => {
+    if (!playing) return;
+    const t = setTimeout(() => {
+      setStep(s => (s + 1) % STAGES.length);
+    }, 950);
+    return () => clearTimeout(t);
+  }, [playing, step]);
 
-        <div class="math-display" id="forward-inverse-pair"></div>
+  const ffPct  = Math.round(preset.ff * 100);
+  const fbPct  = Math.round(preset.fb * 100);
+  const errPct = Math.round(preset.err * 100);
 
-        <div class="prose">
-          <p>
-            <strong>Inverse dynamics</strong> is the one your controller does in real time. You plan
-            a smooth trajectory q<sub>d</sub>(t), q̇<sub>d</sub>(t), q̈<sub>d</sub>(t), and at each
-            tick you compute the torques required to achieve it. That's exactly what the green arm in
-            the widget above is doing 240 times a second.
-          </p>
-          <p>
-            <strong>Forward dynamics</strong> is the one your simulator does. Given the torques being
-            applied right now, integrate to find the next state. That's what every entry in the torque
-            plot above feeds into: an RK4 step that updates positions and velocities. It's also how
-            you safely test a new controller before deploying it on the real robot — let the simulated
-            forward dynamics catch any instabilities.
-          </p>
-          <p>
-            Same equation, two directions, two purposes. Keep them straight: when someone says
-            "compute the dynamics," ask <em>which direction</em>.
-          </p>
-        </div>
+  // The feedforward stage shows zero bar height when ff is off
+  const ffBarHeight  = (preset.ff === 0 && step >= 1) ? 4 : Math.max(4, preset.ff * 110);
+  const fbBarHeight  = step >= 3 ? Math.max(4, preset.fb * 110) : 4;
+  const errBarHeight = step >= 5 ? Math.max(4, preset.err * 110) : 4;
 
-        <figure class="widget">
-          <header class="widget-header">
-            <span class="widget-title">Sandbox · forward dynamics for a planar pendulum</span>
-            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
-          </header>
-          <div class="widget-body">
-            <div data-code-sandbox
-                 data-rows="14"
-                 data-initial="% Single-link planar pendulum, no actuator. Mass m at length L from pivot.
-% Equation of motion: m L^2 q̈ + m g L cos(q) = 0  (q=0 is horizontal-right)
-% Forward dynamics: q̈ = -g cos(q) / L
-m = 1; L = 0.5; g = 9.81
+  return (
+    <div>
+      <div className="preset-row">
+        {PRESETS.map((p, i) => (
+          <button key={p.id}
+                  className={'pick-tab' + (i === presetIdx ? ' is-active' : '')}
+                  onClick={() => { setPresetIdx(i); setStep(0); setPlaying(false); }}>
+            {p.label}
+          </button>
+        ))}
+      </div>
 
-% State at t=0
-q = pi/2     % straight up
-qd = 0
+      <div className="scen-prompt"><strong>Preset.</strong> {preset.desc}</div>
 
-% Take one Euler step of size dt
-dt = 0.01
-qdd = -g * cos(q) / L
-q_next  = q + dt * qd
-qd_next = qd + dt * qdd
-
-% Initial acceleration is 0 (cos(pi/2) = 0). Now nudge the angle slightly:
-q  = pi/2 + 0.05
-qdd = -g * cos(q) / L"></div>
-          </div>
-        </figure>
-      </section>
-
-      <section class="lecture-section" id="control-pipeline">
-        <h2>Where this fits in a control pipeline</h2>
-        <div class="prose">
-          <p>
-            The structure that nearly every modern robot controller uses, sketched out:
-          </p>
-          <ol>
-            <li><strong>Trajectory planner</strong> outputs q<sub>d</sub>(t), q̇<sub>d</sub>(t), q̈<sub>d</sub>(t).</li>
-            <li><strong>Inverse-dynamics block (feedforward)</strong> computes τ<sub>ff</sub> = D q̈<sub>d</sub> + h(q, q̇) + c(q) using the desired trajectory and the measured state.</li>
-            <li><strong>Feedback block</strong> adds a small corrective torque τ<sub>fb</sub> proportional to position and velocity errors.</li>
-            <li><strong>Robot</strong> sees τ<sub>total</sub> = τ<sub>ff</sub> + τ<sub>fb</sub>. The feedforward does the heavy lifting; the feedback handles uncertainties (modelling errors, friction, payload changes).</li>
-            <li><strong>Sensors</strong> measure q, q̇ and feed them back to step 2.</li>
-          </ol>
-          <p>
-            Without the feedforward block, feedback gains have to be cranked up enormously to compensate
-            for inertia and gravity, which makes the system noisy, energy-hungry, and prone to
-            instability. With it, feedback gains can be small and the loop stays well-behaved. That's
-            the practical payoff of dynamic modelling.
-          </p>
-        </div>
-
-        <div class="callout">
-          <div class="callout-title">Why this matters for your assessment</div>
-          <p>
-            The final assignment of the Kinematics half (Lecture 20, master-slave) only needed
-            position-level coordination. The dynamics half opens the door to performance-level questions:
-            "is this trajectory achievable with these motors?", "how do I reduce cycle time without
-            sacrificing precision?", "what is the energy bill per cycle?". These are exam-quality
-            questions, and they're all impossible to answer without the equation we just met.
-          </p>
-        </div>
-      </section>
-
-      <section class="lecture-section" id="recap">
-        <h2>Quick recap</h2>
-        <div class="prose">
-          <ul>
-            <li>Kinematics describes motion geometrically; dynamics describes the forces and torques that cause it.</li>
-            <li>The equation of motion for any serial manipulator: <strong>τ = D(q) q̈ + h(q, q̇) + c(q)</strong>.</li>
-            <li>D is the configuration-dependent inertia matrix, h captures Coriolis and centrifugal effects, c captures gravity.</li>
-            <li>Inverse dynamics (used by controllers) takes a trajectory and outputs torques.</li>
-            <li>Forward dynamics (used by simulators) takes torques and outputs accelerations to integrate.</li>
-            <li>A computed-torque controller using inverse dynamics tracks reference trajectories far more cleanly than pure PD — especially under high speed or heavy payload.</li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="lecture-section" id="homework">
-        <div class="homework">
-          <div class="homework-eyebrow">Homework 22 · due before next session</div>
-          <h3>Feel the equation before we derive it</h3>
-          <ol>
-            <li>Open the twin-arm widget. With the default settings (1.5 s period, 1 kg tip mass, K<sub>p</sub> = 80, K<sub>v</sub> = 14), record the RMS tracking error for each controller after 5 seconds of motion. Now repeat at period = 0.7 s with m<sub>2</sub> = 3 kg. Report all four numbers and a short explanation.</li>
-            <li>Find a configuration of the four sliders where the kinematic controller goes <em>visually unstable</em> (oscillates or flips). What changed? Argue physically why higher payload or faster motion makes the kinematic controller fail before the computed-torque controller does.</li>
-            <li>Consider the equation of motion for a single-link pendulum at rest at q = 0 (horizontal). Sketch by hand the gravitational torque τ that the motor must apply just to hold the arm in place. Now sketch the same for q = π/2 (straight up). Why is one of these easier?</li>
-            <li>Read ahead: Lecture 23 will introduce the Lagrangian L = T − V. As preparation, compute the kinetic and potential energy of a single mass m at position p(q) = (L cos q, L sin q) under gravity. You'll use this exact result in next week's derivation.</li>
-          </ol>
-          <div class="homework-deliverables">
-            <div class="deliverable">
-              <div class="deliverable-num">Deliverable 1</div>
-              <div class="deliverable-name">Tracking-error table</div>
-              <div class="deliverable-desc">Four RMS numbers (two settings × two controllers) with a short paragraph explaining what changed.</div>
+      <div className="ct-stages" style={{ marginTop: 14 }}>
+        {STAGES.map((s, i) => {
+          let cls = 'ct-stage';
+          if (i === step) cls += ' is-active';
+          else if (i < step) cls += ' is-done';
+          return (
+            <div key={s.id} className={cls}>
+              <h4>{s.title}</h4>
+              <p>{s.detail}</p>
             </div>
-            <div class="deliverable">
-              <div class="deliverable-num">Deliverable 2</div>
-              <div class="deliverable-name">Stability finding + reasoning</div>
-              <div class="deliverable-desc">A screenshot of the widget at an unstable kinematic-controller setting plus a paragraph of physical reasoning (no equations needed yet).</div>
-            </div>
-            <div class="deliverable">
-              <div class="deliverable-num">Deliverable 3</div>
-              <div class="deliverable-name">60-second video</div>
-              <div class="deliverable-desc">Walk through the pendulum sketches, explain why one configuration requires zero torque to hold and the other requires maximum torque, and what that has to do with c(q).</div>
-            </div>
-          </div>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 14, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontFamily: 'var(--mono)', fontSize: '0.86rem', color: '#334155', textAlign: 'center' }}>
+        τ_cmd = D(q) q̈_d + h(q, q̇) + c(q) &nbsp;+&nbsp; K_p e + K_d ė
+      </div>
+
+      <div className="ct-bars" aria-label="torque magnitudes">
+        <div className="ct-bar-col">
+          <div className="ct-bar ff" style={{ height: ffBarHeight + 'px' }}></div>
+          <span className="lbl">|τ_ff| {ffPct}%</span>
         </div>
-      </section>
+        <div className="ct-bar-col">
+          <div className="ct-bar fb" style={{ height: fbBarHeight + 'px' }}></div>
+          <span className="lbl">|τ_fb| {fbPct}%</span>
+        </div>
+        <div className="ct-bar-col">
+          <div className="ct-bar err" style={{ height: errBarHeight + 'px' }}></div>
+          <span className="lbl">‖e‖ {errPct}%</span>
+        </div>
+      </div>
+      <p style={{ fontSize: '0.78rem', color: '#64748b', textAlign: 'center', margin: '6px 0 0' }}>
+        Bars fill as the loop reaches the relevant stage. Compare presets — when feedforward is OFF, feedback (red) has to do everything and tracking error (amber) stays large.
+      </p>
 
-      <nav class="lecture-footer-nav">
-        <a href="20-master-slave.html">
-          <span class="label">← Previous</span>
-          <span class="lec-title">Lecture 20 · Master–slave</span>
-        </a>
-        <a href="../index.html#syllabus" class="next" style="opacity:0.55; pointer-events:none">
-          <span class="label">Next →</span>
-          <span class="lec-title">Lecture 23 · Energy &amp; the Lagrangian (coming)</span>
-        </a>
-      </nav>
-    </main>
+      <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn purple" onClick={() => setPlaying(p => !p)}>
+            {playing ? '⏸ Pause' : '▶ Play loop'}
+          </button>
+          <button className="btn secondary" onClick={() => setStep(s => Math.min(STAGES.length - 1, s + 1))} disabled={playing}>
+            ▸ Step
+          </button>
+          <button className="btn secondary" onClick={() => { setStep(0); setPlaying(false); }}>↺ Reset</button>
+        </div>
+        <span style={{ fontSize: '0.82rem', color: '#475569' }}>
+          Stage <strong>{step + 1}</strong> / {STAGES.length}
+        </span>
+      </div>
+    </div>
+  );
+}
 
-    <aside class="lecture-side">
-      <div class="lecture-side-title">In this lecture</div>
-      <ol class="lecture-toc">
-        <li><a href="#why">Kinematics vs dynamics</a></li>
-        <li><a href="#see-it">Twin-arm comparison</a></li>
-        <li><a href="#newton">Newton, with coupling</a></li>
-        <li><a href="#forward-inverse">Forward vs inverse</a></li>
-        <li><a href="#control-pipeline">Control pipeline</a></li>
-        <li><a href="#recap">Quick recap</a></li>
-        <li><a href="#homework">Homework</a></li>
-      </ol>
-    </aside>
-  </article>
+/* ─────────────────────────── Mounts ─────────────────────────── */
+const mounts = [
+  ['why-dynamics-picker',          WhyDynamicsPicker],
+  ['forward-vs-inverse-picker',    ForwardInversePicker],
+  ['equation-builder',             EquationBuilder],
+  ['computed-torque-animator',     ComputedTorqueAnimator],
+];
 
-  <footer class="site-footer">
-    Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a>
-  </footer>
+for (const [id, Comp] of mounts) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.innerHTML = '';
+    ReactDOM.createRoot(el).render(<Comp />);
+  }
+}
+</script>
 
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
-  <script defer>
-    document.addEventListener('DOMContentLoaded', () => {
-      const wait = () => {
-        if (!window.katex) return setTimeout(wait, 30);
-        const renders = [
-          ['ct-law',
-           '\\boldsymbol{\\tau} \\;=\\; D(q)\\,\\big[\\ddot{q}_d + K_p\\,e + K_v\\,\\dot{e}\\big] \\;+\\; h(q, \\dot{q}) \\;+\\; c(q)'],
-          ['eom',
-           '\\boldsymbol{\\tau} \\;=\\; \\underbrace{D(q)}_{\\text{inertia (configuration-dependent)}}\\,\\ddot{q} \\;+\\; \\underbrace{h(q, \\dot{q})}_{\\text{Coriolis / centrifugal}} \\;+\\; \\underbrace{c(q)}_{\\text{gravity}}'],
-          ['forward-inverse-pair',
-           '\\text{inverse:}\\; \\boldsymbol{\\tau} = D(q)\\,\\ddot{q} + h(q,\\dot{q}) + c(q) \\qquad\\Longleftrightarrow\\qquad \\text{forward:}\\; \\ddot{q} = D^{-1}(q)\\,\\big[\\boldsymbol{\\tau} - h(q,\\dot{q}) - c(q)\\big]'],
-        ];
-        renders.forEach(([id, tex]) => {
-          const el = document.getElementById(id);
-          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
-        });
-      };
-      wait();
+<script>
+/* KaTeX timing fix: re-run renderMathInElement after Babel/React mount. */
+(function () {
+  function go() {
+    if (!window.renderMathInElement) return false;
+    try {
+      window.renderMathInElement(document.body, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true  },
+          { left: '\\[', right: '\\]', display: true  },
+          { left: '$', right: '$', display: false },
+          { left: '\\(', right: '\\)', display: false }
+        ],
+        throwOnError: false,
+        ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option']
+      });
+      return true;
+    } catch (e) { return false; }
+  }
+  setTimeout(go,  500);
+  setTimeout(go, 1500);
+  setTimeout(go, 3000);
+  window.addEventListener('load', () => setTimeout(go, 200));
+})();
+</script>
+
+<script>
+/* Side-ToC active-section highlighter */
+(function () {
+  var links = Array.from(document.querySelectorAll('.lecture-toc a'));
+  if (!links.length) return;
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  var sections = links.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); }).filter(Boolean);
+  if (!sections.length || !('IntersectionObserver' in window)) return;
+  var visible = new Set();
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { if (e.isIntersecting) visible.add(e.target.id); else visible.delete(e.target.id); });
+    links.forEach(function (a) { a.classList.remove('is-active'); });
+    var ordered = sections.filter(function (s) { return visible.has(s.id); });
+    if (ordered.length && byId[ordered[0].id]) byId[ordered[0].id].classList.add('is-active');
+  }, { rootMargin: '-72px 0px -65% 0px', threshold: 0 });
+  sections.forEach(function (s) { io.observe(s); });
+})();
+</script>
+
+<script>
+/* TSI Buddy — vanilla-JS chat widget for the TSI Dynamics course.
+ *
+ * Mount once per page:
+ *
+ *   TSIBuddy.mount({
+ *     systemPrompt: "You are TSI Buddy ...",   // required, the AUDITOR prompt
+ *     contextLabel: "docs/01_F_equals_ma.md",  // shown in the modal subtitle
+ *     openingLine:  "I'm reading the F=ma chapter ..."   // optional pre-fill
+ *   });
+ *
+ * The widget mounts a floating button (top-right of the viewport), a settings
+ * modal where the student pastes their Mistral API key, and a chat panel that
+ * streams responses progressively. API key persists in localStorage.
+ *
+ * Streams via Mistral's SSE endpoint (stream: true). Falls back to a single
+ * non-streaming response if the runtime doesn't expose ReadableStream.
+ *
+ * Designed to coexist with the React+htm widget already inside each hook
+ * page. They use the same localStorage keys so a student who pastes their
+ * key once gets it everywhere.
+ */
+(function () {
+  'use strict';
+
+  if (window.TSIBuddy && window.TSIBuddy.__loaded) return;
+
+  var KEY_LS    = 'tsi_mistral_key';
+  var MODEL_LS  = 'tsi_mistral_model';
+  var ENABLE_LS = 'tsi_buddy_enabled';
+
+  function lsGet(k, fb) { try { var v = localStorage.getItem(k); return v == null ? fb : v; } catch (e) { return fb; } }
+  function lsSet(k, v)  { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  /* ---------- Styles (injected once) ---------- */
+  var STYLE = `
+.tsi-buddy-btn {
+  position: fixed; top: 14px; right: 14px; z-index: 9000;
+  background: rgba(255,255,255,0.95); color: #1a3a5c;
+  border: 1px solid #cbd5e1; border-radius: 999px;
+  padding: 8px 14px; font: 600 13px/1 'Inter', system-ui, sans-serif;
+  box-shadow: 0 2px 6px rgba(15,23,42,0.12);
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.tsi-buddy-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(15,23,42,0.18); }
+.tsi-buddy-btn .tsi-buddy-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #94a3b8;
+}
+.tsi-buddy-btn.tsi-on .tsi-buddy-dot { background: #16a34a; box-shadow: 0 0 0 2px rgba(34,197,94,0.25); }
+.tsi-buddy-btn.tsi-on { border-color: #16a34a; color: #166534; }
+
+.tsi-buddy-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.55); z-index: 9100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.tsi-buddy-overlay[hidden] { display: none; }
+
+.tsi-buddy-modal {
+  background: white; border-radius: 12px;
+  max-width: 480px; width: 100%;
+  padding: 24px 26px;
+  box-shadow: 0 20px 60px rgba(15,23,42,0.35);
+  font: 400 14px/1.55 'Inter', system-ui, sans-serif;
+  color: #1e293b;
+}
+.tsi-buddy-modal h3 { margin: 0 0 8px; font-size: 1.2rem; color: #0f172a; }
+.tsi-buddy-modal .tsi-buddy-sub { color: #64748b; font-size: 0.92em; margin: 0 0 16px; }
+.tsi-buddy-modal label { display: block; margin-top: 14px; font-weight: 600; color: #334155; font-size: 0.9em; }
+.tsi-buddy-modal input[type="password"],
+.tsi-buddy-modal select,
+.tsi-buddy-modal textarea {
+  margin-top: 6px; width: 100%; box-sizing: border-box;
+  padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px;
+  font: inherit; color: #1e293b; background: #f8fafc;
+}
+.tsi-buddy-modal input[type="password"] { font-family: ui-monospace, Menlo, monospace; font-size: 0.92em; }
+.tsi-buddy-modal .tsi-buddy-toggle { display: flex; align-items: center; gap: 8px; margin-top: 14px; cursor: pointer; }
+.tsi-buddy-modal .tsi-buddy-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.tsi-buddy-modal button {
+  font: 600 13px/1 'Inter', system-ui, sans-serif;
+  padding: 9px 16px; border-radius: 6px; border: none; cursor: pointer;
+}
+.tsi-buddy-modal .tsi-buddy-secondary { background: white; color: #475569; border: 1px solid #cbd5e1; }
+.tsi-buddy-modal .tsi-buddy-primary   { background: #1565c0; color: white; }
+.tsi-buddy-modal .tsi-buddy-primary:hover { background: #0d47a1; }
+.tsi-buddy-modal .tsi-buddy-secondary:hover { background: #f1f5f9; }
+.tsi-buddy-modal small { color: #64748b; }
+
+.tsi-buddy-chat {
+  position: fixed; right: 14px; bottom: 14px; z-index: 9000;
+  width: 380px; max-width: calc(100vw - 28px);
+  height: 540px; max-height: calc(100vh - 80px);
+  background: white; border: 1px solid #cbd5e1; border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(15,23,42,0.25);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  font: 400 14px/1.55 'Inter', system-ui, sans-serif; color: #1e293b;
+}
+.tsi-buddy-chat[hidden] { display: none; }
+.tsi-buddy-chat-head {
+  background: linear-gradient(135deg, #1a3a5c 0%, #1e4d8c 100%);
+  color: white; padding: 12px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tsi-buddy-chat-head strong { font-size: 0.95em; }
+.tsi-buddy-chat-head small  { color: rgba(255,255,255,0.78); font-size: 0.78em; display: block; margin-top: 2px; }
+.tsi-buddy-chat-head button { background: transparent; border: none; color: white; cursor: pointer; font-size: 1.1em; line-height: 1; padding: 4px 8px; border-radius: 4px; }
+.tsi-buddy-chat-head button:hover { background: rgba(255,255,255,0.16); }
+.tsi-buddy-chat-body {
+  flex: 1 1 auto; overflow-y: auto; padding: 14px 14px 6px;
+  background: #f8fafc;
+}
+.tsi-buddy-bubble {
+  margin: 8px 0; padding: 10px 13px; border-radius: 10px;
+  word-wrap: break-word; overflow-wrap: anywhere; font-size: 0.93em;
+}
+.tsi-buddy-bubble.tsi-user      { background: #e3f2fd; color: #1a3a5c; border-bottom-right-radius: 2px; margin-left: 32px; }
+.tsi-buddy-bubble.tsi-assistant { background: white; border: 1px solid #e2e8f0; margin-right: 32px; }
+.tsi-buddy-bubble .tsi-buddy-role { font-size: 0.72em; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+.tsi-buddy-bubble.tsi-thinking { color: #94a3b8; font-style: italic; }
+/* Markdown typography inside bubbles (rendered for assistant replies). */
+.tsi-buddy-bubble .tsi-buddy-text > * { margin: 0; }
+.tsi-buddy-bubble .tsi-buddy-text > * + * { margin-top: 6px; }
+.tsi-buddy-bubble .tsi-buddy-text p { line-height: 1.55; }
+.tsi-buddy-bubble .tsi-buddy-text strong { font-weight: 700; color: #0f172a; }
+.tsi-buddy-bubble .tsi-buddy-text em { font-style: italic; }
+.tsi-buddy-bubble .tsi-buddy-text ul,
+.tsi-buddy-bubble .tsi-buddy-text ol { padding-left: 22px; }
+.tsi-buddy-bubble .tsi-buddy-text li { margin: 2px 0; }
+.tsi-buddy-bubble .tsi-buddy-text code {
+  background: rgba(15,23,42,0.06); padding: 0 4px; border-radius: 3px;
+  font-family: ui-monospace, Menlo, monospace; font-size: 0.92em;
+}
+.tsi-buddy-bubble .tsi-buddy-text pre {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;
+  padding: 8px 10px; overflow-x: auto;
+}
+.tsi-buddy-bubble .tsi-buddy-text pre code { background: transparent; padding: 0; }
+.tsi-buddy-bubble .tsi-buddy-text blockquote {
+  border-left: 3px solid #cbd5e1; padding: 2px 10px; color: #475569;
+  background: #f8fafc; border-radius: 4px;
+}
+.tsi-buddy-bubble .tsi-buddy-text h1,
+.tsi-buddy-bubble .tsi-buddy-text h2,
+.tsi-buddy-bubble .tsi-buddy-text h3,
+.tsi-buddy-bubble .tsi-buddy-text h4 { font-weight: 700; color: #0f172a; }
+.tsi-buddy-bubble .tsi-buddy-text h1 { font-size: 1.05em; }
+.tsi-buddy-bubble .tsi-buddy-text h2 { font-size: 1.0em; }
+.tsi-buddy-bubble .tsi-buddy-text h3,
+.tsi-buddy-bubble .tsi-buddy-text h4 { font-size: 0.95em; }
+.tsi-buddy-bubble .tsi-buddy-text hr { border: none; border-top: 1px solid #e2e8f0; }
+.tsi-buddy-bubble .tsi-buddy-text a { color: #1565c0; text-decoration: underline; }
+.tsi-buddy-error {
+  background: #fee2e2; color: #7f1d1d; border: 1px solid #fecaca;
+  padding: 8px 10px; border-radius: 6px; margin: 8px 14px; font-size: 0.85em;
+}
+.tsi-buddy-chat-foot {
+  border-top: 1px solid #e2e8f0; padding: 10px 12px;
+  display: flex; gap: 8px; align-items: flex-end;
+  background: white;
+}
+.tsi-buddy-chat-foot textarea {
+  flex: 1 1 auto; resize: none; min-height: 36px; max-height: 140px;
+  padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px;
+  font: inherit; color: #1e293b;
+}
+.tsi-buddy-chat-foot button {
+  font: 600 13px/1 'Inter', system-ui, sans-serif;
+  padding: 9px 14px; border-radius: 6px; border: none; cursor: pointer;
+  background: #1565c0; color: white;
+}
+.tsi-buddy-chat-foot button:disabled { background: #94a3b8; cursor: default; }
+.tsi-buddy-chat-foot button:hover:not(:disabled) { background: #0d47a1; }
+.tsi-buddy-startbar {
+  display: flex; gap: 8px; padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0; background: #fafbfc;
+}
+.tsi-buddy-startbar button {
+  flex: 1 1 auto; font: 600 13px/1 'Inter', system-ui, sans-serif;
+  padding: 9px 12px; border-radius: 6px; border: 1px solid #1565c0;
+  background: white; color: #1565c0; cursor: pointer;
+}
+.tsi-buddy-startbar button:hover { background: #e3f2fd; }
+@media (max-width: 480px) {
+  .tsi-buddy-chat { width: calc(100vw - 16px); right: 8px; bottom: 8px; height: calc(100vh - 90px); }
+}
+`;
+
+  function injectStyles() {
+    if (document.getElementById('tsi-buddy-styles')) return;
+    var s = document.createElement('style');
+    s.id = 'tsi-buddy-styles';
+    s.textContent = STYLE;
+    document.head.appendChild(s);
+  }
+
+  /* ---------- Markdown rendering ---------- */
+  // The buddy returns markdown (bold, italic, lists, code, headers).
+  // We lazily load `marked` from CDN and render assistant replies through it.
+  // Until marked is loaded (or if it fails to load), we fall back to plain
+  // text with newlines preserved as <br>.
+  function loadMarked() {
+    if (window.marked) return Promise.resolve(window.marked);
+    if (window.__tsiMarkedLoading) return window.__tsiMarkedLoading;
+    window.__tsiMarkedLoading = new Promise(function (resolve) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js';
+      s.async = true;
+      s.onload  = function () { resolve(window.marked || null); };
+      s.onerror = function () { resolve(null); };
+      document.head.appendChild(s);
     });
-  </script>
+    return window.__tsiMarkedLoading;
+  }
 
-  <script type="module">
-    import { mountCodeSandbox }       from '../js/widgets/code-sandbox.js';
-    import { mountDynamicComparison } from '../js/widgets/dynamic-comparison.js';
-
-    document.querySelectorAll('[data-dynamic-comparison]').forEach(mountDynamicComparison);
-    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
-
-    const links = document.querySelectorAll('.lecture-toc a');
-    const sections = [...document.querySelectorAll('.lecture-section')];
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          const id = e.target.id;
-          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+  // Light DOM sanitiser: walks the parsed tree and removes any tags / attrs
+  // that could execute code if the model went rogue. Allow-listing all
+  // safe markdown tags; strip everything else's dangerous attributes.
+  function sanitizeHTML(html) {
+    var div = document.createElement('div');
+    div.innerHTML = html;
+    var deny = ['script', 'style', 'iframe', 'object', 'embed', 'form',
+                'input', 'button', 'textarea', 'select', 'meta', 'link', 'base'];
+    deny.forEach(function (tag) {
+      Array.from(div.getElementsByTagName(tag)).forEach(function (n) { n.remove(); });
+    });
+    Array.from(div.querySelectorAll('*')).forEach(function (n) {
+      Array.from(n.attributes).forEach(function (a) {
+        var name = a.name.toLowerCase();
+        if (name.indexOf('on') === 0) { n.removeAttribute(a.name); return; }
+        if (name === 'href' || name === 'src' || name === 'srcset') {
+          var v = (a.value || '').replace(/\s/g, '');
+          if (/^javascript:/i.test(v) || /^data:text\/html/i.test(v)) {
+            n.removeAttribute(a.name);
+          }
         }
       });
-    }, { rootMargin: '-30% 0px -65% 0px' });
-    sections.forEach(s => observer.observe(s));
-  </script>
+      // External links: open in new tab safely
+      if (n.tagName === 'A' && n.getAttribute('href')) {
+        n.setAttribute('target', '_blank');
+        n.setAttribute('rel', 'noopener noreferrer');
+      }
+    });
+    return div.innerHTML;
+  }
+
+  function escapeHTML(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function renderContent(text, isAssistant) {
+    var div = document.createElement('div');
+    div.className = 'tsi-buddy-text';
+    var raw = text == null ? '' : String(text);
+    if (isAssistant && window.marked && window.marked.parse) {
+      try {
+        var html = window.marked.parse(raw, { breaks: true, gfm: true, mangle: false, headerIds: false });
+        div.innerHTML = sanitizeHTML(html);
+        return div;
+      } catch (e) { /* fall through to plain text */ }
+    }
+    // Plain-text fallback (user messages, or assistant before marked loads)
+    div.innerHTML = escapeHTML(raw).replace(/\n/g, '<br>');
+    return div;
+  }
+
+  /* ---------- Streaming Mistral call ---------- */
+  function callMistralChat(apiKey, model, systemPrompt, messages, onDelta) {
+    return fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: model || 'mistral-small-latest',
+        temperature: 0.4,
+        max_tokens: 1500,
+        stream: true,
+        messages: [{ role: 'system', content: systemPrompt }].concat(messages)
+      })
+    }).then(function (r) {
+      if (!r.ok) {
+        return r.text().then(function (t) {
+          throw new Error('Mistral ' + r.status + ': ' + (t || 'request failed'));
+        });
+      }
+      if (!r.body || !r.body.getReader) {
+        return r.json().then(function (data) {
+          if (!data.choices || !data.choices[0]) throw new Error('Mistral returned no choices.');
+          var full = (data.choices[0].message.content || '').trim();
+          if (onDelta) onDelta(full);
+          return full;
+        });
+      }
+      var reader = r.body.getReader();
+      var decoder = new TextDecoder();
+      var buf = '';
+      var full = '';
+      function pump() {
+        return reader.read().then(function (res) {
+          if (res.done) return full.trim();
+          buf += decoder.decode(res.value, { stream: true });
+          var lines = buf.split('\n');
+          buf = lines.pop();
+          for (var i = 0; i < lines.length; i++) {
+            var ln = lines[i];
+            if (ln.indexOf('data: ') !== 0) continue;
+            var s = ln.substring(6).trim();
+            if (s === '[DONE]') return full.trim();
+            try {
+              var d = JSON.parse(s);
+              if (d.choices && d.choices[0] && d.choices[0].delta && d.choices[0].delta.content) {
+                full += d.choices[0].delta.content;
+                if (onDelta) onDelta(full);
+              }
+            } catch (e) {}
+          }
+          return pump();
+        });
+      }
+      return pump();
+    });
+  }
+
+  /* ---------- DOM helpers ---------- */
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === 'class') n.className = attrs[k];
+      else if (k === 'html') n.innerHTML = attrs[k];
+      else if (k === 'text') n.textContent = attrs[k];
+      else if (k.indexOf('on') === 0 && typeof attrs[k] === 'function') n.addEventListener(k.substring(2), attrs[k]);
+      else if (attrs[k] === true) n.setAttribute(k, '');
+      else if (attrs[k] != null && attrs[k] !== false) n.setAttribute(k, attrs[k]);
+    }
+    if (kids) (Array.isArray(kids) ? kids : [kids]).forEach(function (c) {
+      if (c == null) return;
+      n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    });
+    return n;
+  }
+
+  /* ---------- Mount ---------- */
+  function mount(opts) {
+    if (!opts || !opts.systemPrompt) {
+      console.warn('TSIBuddy.mount: systemPrompt required');
+      return null;
+    }
+    injectStyles();
+
+    // ---- State (closure-scoped) ----
+    var state = {
+      apiKey:  lsGet(KEY_LS, ''),
+      model:   lsGet(MODEL_LS, 'mistral-small-latest'),
+      enabled: lsGet(ENABLE_LS, '') === '1',
+      messages: [],     // {role, content}
+      pending: '',
+      status:  'idle',  // idle | loading | error
+      error:   '',
+      open:    false    // chat panel visible
+    };
+    if (state.apiKey) state.enabled = true; // having a key implies enabled
+
+    // ---- Floating button ----
+    var btnDot   = el('span', { class: 'tsi-buddy-dot' });
+    var btnLabel = el('span', null, '🤖 TSI Buddy');
+    var btnState = el('span', null, '');
+    var btn = el('button', {
+      class: 'tsi-buddy-btn',
+      title: 'TSI Buddy — your study companion',
+      onclick: function () {
+        if (state.apiKey) toggleChat();
+        else openSettings();
+      }
+    }, [btnDot, btnLabel, btnState]);
+    document.body.appendChild(btn);
+
+    // ---- Settings modal ----
+    var keyInput = el('input', {
+      type: 'password', autocomplete: 'off',
+      placeholder: 'paste your Mistral key (starts with "sk-…")',
+      value: state.apiKey,
+      oninput: function (e) { state.apiKey = e.target.value; }
+    });
+    var modelSelect = el('select', {
+      onchange: function (e) { state.model = e.target.value; }
+    }, ['mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest'].map(function (m) {
+      var o = el('option', { value: m }, m + (m === 'mistral-small-latest' ? ' (recommended)' : ''));
+      if (m === state.model) o.selected = true;
+      return o;
+    }));
+    var enableBox = el('input', {
+      type: 'checkbox',
+      onchange: function (e) { state.enabled = !!e.target.checked; }
+    });
+    enableBox.checked = state.enabled;
+    var modalCard = el('div', { class: 'tsi-buddy-modal', onclick: function (e) { e.stopPropagation(); } }, [
+      el('h3', null, '🤖 TSI Buddy'),
+      el('p', { class: 'tsi-buddy-sub' }, opts.contextLabel
+        ? ('You are reading: ' + opts.contextLabel + '. The buddy reads the page context and helps you understand worked examples — it does not give you the answer to your homework.')
+        : 'A study companion. The buddy helps you understand the worked examples on this page.'),
+      el('label', { class: 'tsi-buddy-toggle' }, [enableBox, el('span', null, 'Enable TSI Buddy on this page')]),
+      el('label', null, 'Mistral API key'),
+      keyInput,
+      el('label', null, 'Model'),
+      modelSelect,
+      el('p', null, [el('small', null, 'Get a free key at '), el('a', { href: 'https://console.mistral.ai/api-keys/', target: '_blank' }, 'console.mistral.ai'), el('small', null, '. The key stays in your browser only.')]),
+      el('div', { class: 'tsi-buddy-actions' }, [
+        el('button', { class: 'tsi-buddy-secondary', onclick: function () { state.apiKey = ''; keyInput.value = ''; } }, 'Clear key'),
+        el('button', { class: 'tsi-buddy-primary',   onclick: function () { saveSettings(); } }, 'Save')
+      ])
+    ]);
+    var modalOverlay = el('div', { class: 'tsi-buddy-overlay', hidden: true, onclick: function () { closeSettings(); } }, [modalCard]);
+    document.body.appendChild(modalOverlay);
+
+    // ---- Chat panel ----
+    var chatBody = el('div', { class: 'tsi-buddy-chat-body' });
+    var chatErr  = el('div', { class: 'tsi-buddy-error', hidden: true });
+    var inputBox = el('textarea', {
+      rows: 1, placeholder: 'Ask about this page…',
+      onkeydown: function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendUserMessage();
+        }
+      },
+      oninput: function (e) { state.pending = e.target.value; sendBtn.disabled = !canSend(); autosize(e.target); }
+    });
+    var sendBtn = el('button', {
+      onclick: function () { sendUserMessage(); }
+    }, 'Send');
+    sendBtn.disabled = true;
+
+    var startBar = el('div', { class: 'tsi-buddy-startbar' });
+
+    var chatFoot = el('div', { class: 'tsi-buddy-chat-foot' }, [inputBox, sendBtn]);
+
+    var chatHead = el('div', { class: 'tsi-buddy-chat-head' }, [
+      el('div', null, [
+        el('strong', null, '🤖 TSI Buddy'),
+        opts.contextLabel ? el('small', null, opts.contextLabel) : null
+      ]),
+      el('div', null, [
+        el('button', { title: 'Settings', onclick: function () { openSettings(); } }, '⚙'),
+        el('button', { title: 'Reset chat', onclick: function () { resetChat(); } }, '↺'),
+        el('button', { title: 'Close', onclick: function () { closeChat(); } }, '×')
+      ])
+    ]);
+
+    var chatPanel = el('div', { class: 'tsi-buddy-chat', hidden: true }, [
+      chatHead, startBar, chatErr, chatBody, chatFoot
+    ]);
+    document.body.appendChild(chatPanel);
+
+    // ---- Render ----
+    function refreshButton() {
+      if (state.apiKey && state.enabled) { btn.classList.add('tsi-on'); btnState.textContent = 'ON'; }
+      else                                { btn.classList.remove('tsi-on'); btnState.textContent = 'off'; }
+    }
+    function autosize(t) {
+      t.style.height = 'auto';
+      t.style.height = Math.min(140, Math.max(36, t.scrollHeight)) + 'px';
+    }
+    function canSend() {
+      return !!(state.apiKey && state.enabled && state.pending.trim() && state.status !== 'loading');
+    }
+    function refreshSendBtn() { sendBtn.disabled = !canSend(); }
+    function refreshStartBar() {
+      while (startBar.firstChild) startBar.removeChild(startBar.firstChild);
+      if (state.messages.length > 0) { startBar.style.display = 'none'; return; }
+      startBar.style.display = 'flex';
+      if (opts.openingLine) {
+        startBar.appendChild(el('button', {
+          onclick: function () { startWith(opts.openingLine); }
+        }, '🚀 Start with: "' + opts.openingLine.substring(0, 50) + (opts.openingLine.length > 50 ? '…' : '') + '"'));
+      }
+      startBar.appendChild(el('button', {
+        onclick: function () { startWith('Help me understand the worked example on this page.'); }
+      }, '💡 Generic walkthrough'));
+    }
+    function refreshChat() {
+      while (chatBody.firstChild) chatBody.removeChild(chatBody.firstChild);
+      state.messages.forEach(function (m, i) {
+        var thinking = (state.status === 'loading' && i === state.messages.length - 1 && m.role === 'assistant' && !m.content);
+        var displayText = m.content || (thinking ? '…' : '');
+        var contentDiv = thinking
+          ? (function () { var d = document.createElement('div'); d.className = 'tsi-buddy-text'; d.textContent = '…'; return d; })()
+          : renderContent(displayText, m.role === 'assistant');
+        var bubble = el('div', { class: 'tsi-buddy-bubble tsi-' + m.role }, [
+          el('div', { class: 'tsi-buddy-role' }, m.role === 'assistant' ? '🤖 TSI Buddy' : '🧑 You'),
+          contentDiv
+        ]);
+        if (thinking) bubble.classList.add('tsi-thinking');
+        chatBody.appendChild(bubble);
+      });
+      if (state.status === 'error' && state.error) {
+        chatErr.textContent = 'API error: ' + state.error;
+        chatErr.hidden = false;
+      } else {
+        chatErr.hidden = true;
+      }
+      // scroll to bottom
+      requestAnimationFrame(function () { chatBody.scrollTop = chatBody.scrollHeight; });
+      refreshStartBar();
+      refreshSendBtn();
+    }
+
+    // ---- Behaviour ----
+    function openSettings()  { modalOverlay.hidden = false; setTimeout(function () { keyInput.focus(); }, 50); }
+    function closeSettings() { modalOverlay.hidden = true; }
+    function saveSettings() {
+      lsSet(KEY_LS, state.apiKey || '');
+      lsSet(MODEL_LS, state.model || 'mistral-small-latest');
+      lsSet(ENABLE_LS, state.enabled ? '1' : '');
+      closeSettings();
+      refreshButton();
+      if (state.apiKey && state.enabled) openChat();
+    }
+    function openChat()  { state.open = true; chatPanel.hidden = false; refreshChat(); inputBox.focus(); }
+    function closeChat() { state.open = false; chatPanel.hidden = true; }
+    function toggleChat(){ state.open ? closeChat() : openChat(); }
+    function resetChat() { state.messages = []; state.pending = ''; state.status = 'idle'; state.error = ''; inputBox.value = ''; refreshChat(); }
+    function startWith(line) {
+      inputBox.value = line;
+      state.pending = line;
+      autosize(inputBox);
+      sendUserMessage();
+    }
+    function sendUserMessage() {
+      var draft = (state.pending || '').trim();
+      if (!draft || !state.apiKey || state.status === 'loading') return;
+      var userMsg = { role: 'user', content: draft };
+      state.messages.push(userMsg);
+      state.messages.push({ role: 'assistant', content: '' });
+      state.pending = ''; inputBox.value = ''; autosize(inputBox);
+      state.status = 'loading'; state.error = '';
+      refreshChat();
+      callMistralChat(state.apiKey, state.model, opts.systemPrompt, state.messages.slice(0, -1), function (full) {
+        var last = state.messages[state.messages.length - 1];
+        if (last && last.role === 'assistant') {
+          last.content = full;
+          refreshChat();
+        }
+      }).then(function () {
+        state.status = 'idle';
+        refreshChat();
+      }).catch(function (err) {
+        var last = state.messages[state.messages.length - 1];
+        if (last && last.role === 'assistant' && !last.content) state.messages.pop();
+        state.status = 'error';
+        state.error = (err && err.message) || String(err);
+        refreshChat();
+      });
+    }
+
+    refreshButton();
+    refreshChat();
+
+    // Lazily fetch marked so assistant replies render markdown. If it
+    // arrives mid-conversation, re-render so any plain-text bubbles get
+    // upgraded to formatted ones.
+    loadMarked().then(function (m) { if (m) refreshChat(); });
+
+    // First-time arrival: nudge the modal open if no key set
+    // (but not too aggressively — only on explicit click of the button).
+
+    return {
+      open: openChat, close: closeChat, toggle: toggleChat,
+      reset: resetChat,
+      destroy: function () {
+        try { document.body.removeChild(btn); } catch (e) {}
+        try { document.body.removeChild(modalOverlay); } catch (e) {}
+        try { document.body.removeChild(chatPanel); } catch (e) {}
+      }
+    };
+  }
+
+  window.TSIBuddy = { mount: mount, __loaded: true };
+})();
+
+</script>
+<script>
+window.addEventListener('DOMContentLoaded', function () {
+  if (!window.TSIBuddy) {
+    console.warn('TSI Buddy did not initialise — inlined script may be malformed.');
+    return;
+  }
+  var SYS = [
+    "You are the TSI Buddy for bibliosense's Robot Dynamics course, supporting Lecture 01 — From kinematics to dynamics.",
+    "",
+    "Your job for this lecture:",
+    "- Help students see why kinematics alone cannot answer 'what torque does this motor need?' and dynamics has to fill that gap.",
+    "- Make the three torque sources in τ = D(q)q̈ + h(q,q̇) + c(q) feel physical, not symbolic — inertia × acceleration, velocity-coupling, and gravity.",
+    "- Coach students to distinguish forward dynamics (predict motion from torque) from inverse dynamics (find torque from planned motion) by what's given vs. unknown.",
+    "- Use the live widgets on this page (the 'dominant effect' picker, the forward-vs-inverse picker, the equation builder, the computed-torque animator) as the primary teaching surface — point students to them rather than reciting answers.",
+    "- Anchor every claim back to this lecture's own framing, not external textbooks.",
+    "",
+    "# GROUND TRUTH",
+    "",
+    "THE FORMULA(S) / KEY DEFINITIONS",
+    "The equation of motion: τ = D(q) q̈ + h(q, q̇) + c(q).",
+    "- τ ∈ ℝⁿ — joint torques (or forces, for prismatic joints).",
+    "- D(q) ∈ ℝⁿˣⁿ — inertia matrix; symmetric, positive definite.",
+    "- h(q, q̇) ∈ ℝⁿ — Coriolis + centrifugal; quadratic in q̇.",
+    "- c(q) ∈ ℝⁿ — gravitational loading; depends on pose only.",
+    "Forward dynamics rearranges to q̈ = D⁻¹(τ − h − c). Inverse dynamics evaluates the right-hand side directly.",
+    "",
+    "WHY (the intuition behind it)",
+    "Kinematics tells you where the arm is; it cannot tell you what torque the motor must deliver. Once links have mass, every acceleration costs torque, every velocity stirs up Coriolis/centrifugal cross-talk, and every pose tilts gravity differently across the chain. The three terms in τ = Dq̈ + h + c are exactly those three torque sources, summed. Dynamics is just Newton's F = ma — but written for a chain of coupled bodies whose effective masses change with configuration.",
+    "",
+    "THE GOTCHA (most common student misconception)",
+    "Students treat D as a constant 'mass of the robot.' It isn't. D(q) changes every time the arm moves, and its off-diagonal entries mean accelerating one joint mechanically pushes every other joint. Related trap: assuming h vanishes when joints move 'slowly.' h is quadratic in q̇, so it shrinks fast — but it's also the term that surprises students at high speed because it doesn't appear in any static analysis they did before.",
+    "",
+    "BOUNDARY CASES (limit cases worth mentioning)",
+    "- Static hold (q̇ = q̈ = 0): τ = c(q). Pure gravity compensation.",
+    "- Zero gravity / vertical axis with horizontal links balanced: c(q) = 0; only inertial and velocity terms matter.",
+    "- Single rigid body, single DOF: D collapses to a scalar inertia, h vanishes, and the equation reduces to τ = I θ̈ + mgℓ sin θ — the familiar pendulum.",
+    "- Very slow motion: h ≈ 0 and Dq̈ ≈ 0, so τ ≈ c(q) — quasi-static regime.",
+    "",
+    "EXPLAIN-IT-LIKE-THIS",
+    "Imagine carrying a long pole with a weight on the end. Holding it still costs effort that depends only on how you're holding it — that's c(q). Swinging the pole takes extra effort proportional to how fast you accelerate it, and the effort depends on whether your arm is folded or extended — that's D(q) q̈. And if you spin while swinging, you feel sideways tugs you didn't ask for — that's h(q, q̇). Three felt sensations, three terms.",
+    "",
+    "CURRICULUM CONTEXT",
+    "Coming in: forward/inverse kinematics, Jacobians, and differentiation of position to velocity and acceleration. Those q, q̇, q̈ are the inputs to today's equation. Coming next: Module 2 introduces Lagrangian (energy-based) mechanics as a clean way to derive D, h, c without juggling free-body diagrams. Module 3 does the full derivation; Module 4 specialises Lagrange to manipulators. Do not assume students have seen Lagrangians, computed-torque control, or passivity proofs yet — those are downstream.",
+    "",
+    "COMMON STUDENT QUESTIONS",
+    "Q: Why isn't τ = Iq̈ enough, like a flywheel? | A: Because each link's 'I' depends on where the other links are, and motion at one joint exerts torque at the others. That's why D is a matrix, not a scalar, and why it's a function of q.",
+    "Q: What's the difference between Coriolis and centrifugal here? | A: Both live in h. Centrifugal terms come from a single joint's own velocity (q̇ᵢ²); Coriolis terms come from products of two different joint velocities (q̇ᵢ q̇ⱼ).",
+    "Q: Why use inverse dynamics if feedback can correct errors anyway? | A: Feedback only reacts after an error appears. Inverse dynamics predicts the torque the motion needs and applies it ahead of time, so feedback only mops up modelling error and disturbances.",
+    "Q: Is D ever singular? | A: For a rigid manipulator, no — D(q) is positive definite at every configuration, so D⁻¹ always exists. Kinematic singularities (Jacobian rank loss) are a separate phenomenon.",
+    "Q: Does friction appear in this equation? | A: Not in the form shown. Real robots add a friction term (often modelled as viscous + Coulomb) on the right-hand side; we'll keep it out for now to focus on the rigid-body physics.",
+    "",
+    "PRO-INSIGHT WRAP-UP TEMPLATE",
+    "The same τ = Dq̈ + h + c that we just sketched is the spine of computed-torque control later in the course — once you can compute the right-hand side in real time, you can make the robot track almost any trajectory you can plan.",
+    "",
+    "# PEDAGOGY GUARDS",
+    "",
+    "- Never reveal a picker's correct answer outright. If a student asks 'is it option A?', respond by asking which physical effect they think the symptom matches and pointing them at the relevant term in τ = Dq̈ + h + c. Scaffold; don't spoonfeed.",
+    "- Never spell out a derivation in full. If asked 'derive D(q)', explain that the derivation is the work of Modules 2–4 and offer a guiding question — e.g., 'what energy does the link have at velocity q̇, and how does that depend on the masses upstream?' — instead of producing the algebra.",
+    "- Whenever a student is reasoning about a torque term, point them at the live widget that targets it: dominant-effect picker (which term explains a symptom), forward-vs-inverse picker (which side is the unknown), equation builder (which terms vanish in a regime), or computed-torque animator (what feedforward buys you).",
+    "- Anchor every factual claim back to a quote or passage from this lecture's prose. If something isn't in the GROUND TRUTH above, say you don't know rather than inventing.",
+    "",
+    "# LANGUAGE",
+    "",
+    "Default to English. Switch only on a clearly non-English signal from the student. Non-English replies must end with a one-line `*EN summary:*` so the student can also follow in English.",
+    "",
+    "# REPLY STYLE",
+    "",
+    "60–180 words. Plain language, no jargon parade. Use concrete physical pictures (the sagging arm, the spinning pole, the welder at 1.5 m/s) before formal symbols. Quote short, anchored snippets from the lecture when grounding a claim. End most replies with a single guiding question that nudges the student toward the next widget or section."
+  ];
+  window.TSIBuddy.mount({
+    contextLabel: 'Robot Dynamics · Lecture 01',
+    openingLine: "I'm reading this lecture — could you help me build intuition for the main idea before I dive into the activities?",
+    systemPrompt: Array.isArray(SYS) ? SYS.join('\n') : SYS
+  });
+});
+</script>
+
 </body>
 </html>
