@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecture 01 · Frames of reference, the identity matrix, rotation around X</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232F5496'/%3E%3Cpath d='M30 70 L30 30 L50 50 L70 30 L70 70' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a href="../index.html" class="brand">
+        <span class="brand-mark">R</span>
+        Kinematics &amp; Dynamics of Robot Manipulators
+      </a>
+      <div class="topnav-links">
+        <a href="../index.html#syllabus">Syllabus</a>
+        <a href="../index.html#about">About</a>
+      </div>
+    </div>
+  </nav>
+
+  <article class="lecture">
+    <main class="lecture-main">
+
+      <header class="lecture-header">
+        <div class="lecture-eyebrow">Lecture 01 · Module 1</div>
+        <h1 class="lecture-title">Frames of reference, the identity matrix, rotation around X</h1>
+        <p class="lecture-subtitle">
+          Two coordinate frames, six degrees of freedom, and the first matrix you'll meet —
+          derived live by projecting unit vectors onto axes.
+        </p>
+      </header>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="welcome">
+        <h2>Welcome</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>First lecture. There is a lot of new vocabulary in the next 90 minutes — frames of reference, projections, rotation matrices — and you don't have to retain everything on first contact. Every concept here will be used again, ten times, before the term is over.</p>
+          </div>
+          <p>
+            This is the first lecture of <em>Kinematics and Dynamics of Robot Manipulators</em>. The whole semester
+            is going to be one connected worked example — we'll start with a single point in space and build it
+            all the way up to two industrial robots running a master–slave choreography on a moving plate. Today is
+            the first piece: <strong>how do we describe where something is in 3D space, mathematically, in a way a
+            computer can use?</strong>
+          </p>
+          <p>
+            We're going to be using MATLAB and RoboDK in the live course; on this page we'll use a browser-based
+            sandbox that runs the same matrix algebra so you can experiment without leaving the lecture. The
+            convention is the same in both: <strong style="color:var(--axis-x)">x is red</strong>,
+            <strong style="color:var(--axis-y)">y is green</strong>,
+            <strong style="color:var(--axis-z)">z is blue</strong>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="dof">
+        <h2>Degrees of freedom</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>From the prerequisites: a degree of freedom is one independent direction in which a rigid body can move. A free body in 3D space has six — three to translate, three to rotate. The whole job of kinematics is bookkeeping on which are free and which are constrained by the joints.</p>
+          </div>
+          <p>
+            A free body in 3D space has six degrees of freedom — three for translation (along x, y, z) and three for
+            rotation (around x, y, z). When we attach a robot to that body, the robot's joints constrain those degrees
+            of freedom. Each joint either contributes a degree of freedom (a rotational or prismatic motion the robot
+            can choose) or removes one. The whole job of kinematics is to keep track of which are free, which are
+            constrained, and how they compose.
+          </p>
+          <p>
+            The fact that translations and rotations are independent is what lets us separate the matrix that describes
+            position from the matrix that describes orientation, and that's the move we're going to make next.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="frames">
+        <h2>Reference frames</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Position is always relative. To say where something is we need a reference — three orthogonal unit vectors x, y, z meeting at an origin. Every coordinate, every transform, every robot pose in this course will live relative to a frame like this one.</p>
+          </div>
+          <p>
+            To talk about where something is, we need something to talk <em>relative to</em>. In robotics that's almost
+            always a Cartesian frame: three orthogonal unit vectors x, y, z meeting at an origin. In the lecture I'd
+            draw it on the whiteboard; here you can drag the camera around it.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Two coordinate frames</span>
+            <span class="widget-tag">Drag to rotate camera</span>
+          </header>
+          <div class="widget-body">
+            <div data-frame-viewer
+                 data-axes="x"
+                 data-show-matrix="true"
+                 data-initial="0"></div>
+            <p class="sandbox-hint" style="margin-top: var(--space-3)">
+              The fixed frame is x (red), y (green), z (blue). The mobile frame is u (orange), v (purple), w (cyan).
+              At θ = 0 they overlap. Drag the slider to rotate the mobile frame around the fixed x axis, and watch
+              the rotation matrix update.
+            </p>
+          </div>
+        </figure>
+
+        <div class="prose">
+          <p>
+            When we have two frames — say, one fixed at the base of the robot (call it frame 0) and one attached
+            to the tool (call it frame 1) — we need a way to describe how frame 1 sits relative to frame 0. That
+            description is going to be a matrix. The matrix lives between the two frames.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="identity">
+        <h2>The identity matrix — frames that live together happily</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Two frames perfectly overlapping is the trivial case. Every column of the rotation matrix encodes one mobile axis projected onto the fixed axes — and at perfect alignment, those projections are exactly the standard basis. The result is the identity matrix.</p>
+          </div>
+          <p>
+            The simplest possible case: the two frames coincide. Same origin, same orientation, every axis pointing
+            the same way. Their relationship is "nothing has changed". Let's express that mathematically.
+          </p>
+          <p>
+            We use unit vectors. If <strong>u</strong> is the x-axis of the mobile frame, how much of u lies along x of the
+            fixed frame? All of it — the projection is 1. How much of u lies along y? Zero. Along z? Zero. The columns
+            of the rotation matrix are exactly the components of u, v, w expressed in the fixed frame's x, y, z.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Build the identity matrix entry by entry</span>
+            <span class="widget-tag">Click to reveal</span>
+          </header>
+          <div class="widget-body">
+            <div data-matrix-stepper data-id="identity" data-reveals="#identity-formula"></div>
+          </div>
+        </figure>
+
+        <div class="math-display gated" id="identity-formula"></div>
+
+        <div class="prose">
+          <p>
+            We get the <strong>identity matrix</strong>, written I₃ — the 3×3 matrix with ones on the diagonal and zeros
+            everywhere else. Whenever you see I₃ in a derivation, read it as "no rotation has happened yet".
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="rotation-x">
+        <h2>Rotation around X</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Now the mobile frame is rotated by θ around the fixed x axis. u stays put because it lies along x; v and w both swing through θ in the y–z plane. Project each one onto x, y, z and read the resulting columns — that is the matrix.</p>
+          </div>
+          <p>
+            Now the mobile frame rotates by an angle θ around the fixed x axis. <strong>u</strong> doesn't move — it stays
+            along x. But <strong>v</strong> tilts up out of the y direction, and <strong>w</strong> tilts back along y. We
+            derive the matrix the same way: project each mobile axis onto each fixed axis.
+          </p>
+          <p>
+            Drag the slider in the widget below to see what happens, then build the matrix in the stepper.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Rotate around x</span>
+            <span class="widget-tag">Geometry</span>
+          </header>
+          <div class="widget-body">
+            <div data-frame-viewer
+                 data-axes="x"
+                 data-show-matrix="true"></div>
+          </div>
+        </figure>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Derive Rx(θ) entry by entry</span>
+            <span class="widget-tag">Stepper</span>
+          </header>
+          <div class="widget-body">
+            <div data-matrix-stepper data-id="rx" data-reveals="#rx-formula, #rx-callout"></div>
+          </div>
+        </figure>
+
+        <div class="math-display gated" id="rx-formula"></div>
+
+        <div class="callout gated" id="rx-callout">
+          <div class="callout-title">Verify against the picture</div>
+          <p>
+            At θ = 0, every cos becomes 1 and every sin becomes 0 — the matrix collapses to I₃, which is
+            exactly what should happen when the two frames coincide. At θ = 90°, cos = 0 and sin = 1, so v
+            ends up fully along z and w ends up fully along −y. Drag the widget slider to 90° and check that
+            the picture matches.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="try-it">
+        <h2>Try it in the sandbox</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>A useful habit when you don't know a MATLAB function: type your best guess and read its help. Names like <code>line</code>, <code>plot3</code>, <code>view</code>, <code>cosd</code>, <code>sind</code> all do roughly what the name implies. The browser sandbox above mirrors the same conventions and works in degrees by default.</p>
+          </div>
+          <p>
+            The sandbox below is a real math.js evaluator. <code>rotX</code>, <code>rotY</code>, <code>rotZ</code> are
+            already defined for you, in degrees, exactly the way you'd write them in MATLAB. Run the cell. Then
+            change the angle and run it again.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Browser sandbox · math.js</span>
+            <span class="widget-tag">⌘/Ctrl + ⏎ to run</span>
+          </header>
+          <div class="widget-body">
+            <div data-code-sandbox
+                 data-rows="6"
+                 data-initial="% rotX(theta) returns the rotation matrix around x, theta in degrees.
+% Try a few values, predict before you run.
+rotX(0)
+rotX(30)
+rotX(90)"></div>
+          </div>
+        </figure>
+
+        <div class="prose">
+          <p>
+            Predict before you run: at <code>rotX(90)</code>, where do you expect v and w to end up? Use the
+            sandbox to check yourself, then verify visually with the slider in the widget above.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="point-rotation">
+        <h2>Animating a point</h2>
+        <div class="prose">
+          <div class="voice">
+            <p>Pick a point a fixed inside the mobile frame at coordinates (0.3, 0.4, 0.5). As the frame rotates, the point moves with it — but its description in the mobile frame's own coordinates never changes. The whole job of R is to translate that fixed mobile description into the fixed-frame coordinates we can actually plot.</p>
+          </div>
+          <p>
+            Take a point a = (0.3, 0.4, 0.5) defined in the mobile frame. As the mobile frame rotates around x, the
+            point's coordinates relative to the fixed frame change — even though, from the mobile frame's point of
+            view, the point hasn't moved at all. Drag the slider to watch the point sweep out an arc.
+          </p>
+        </div>
+
+        <figure class="widget">
+          <header class="widget-header">
+            <span class="widget-title">Watch the point move</span>
+            <span class="widget-tag">a_xyz = R · a_uvw</span>
+          </header>
+          <div class="widget-body">
+            <div data-rotation-animator
+                 data-axis="x"
+                 data-point="0.3,0.4,0.5"></div>
+          </div>
+        </figure>
+
+        <div class="math-display" id="point-formula"></div>
+
+        <div class="prose">
+          <p>
+            That's the whole idea of representing motion as matrix multiplication. We'll do this thousands of times
+            this semester — with bigger matrices, with more frames, with translations folded in — but the idea is
+            the same. The matrix lives between two frames; multiplying takes you across.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="recap">
+        <h2>Quick recap</h2>
+        <div class="prose">
+          <ul>
+            <li>A free body has six degrees of freedom — three translations, three rotations.</li>
+            <li>To describe orientation, attach a reference frame to it. We use Cartesian frames with x-red, y-green, z-blue.</li>
+            <li>The relationship between two frames is captured by a 3×3 rotation matrix.</li>
+            <li>The columns of the matrix are the mobile frame's axes (u, v, w) expressed in the fixed frame's basis (x, y, z).</li>
+            <li>When the frames coincide, the matrix is the identity I₃.</li>
+            <li>For a rotation by θ around x, u stays put; v and w rotate in the y–z plane. Hence Rx(θ).</li>
+            <li>To find a point's coordinates in the fixed frame, multiply: a_xyz = R · a_uvw.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <section class="lecture-section" id="homework">
+        <div class="homework">
+          <div class="homework-eyebrow">Homework 01 · due before next session</div>
+          <h3>Rotations around y and z, by hand and in code</h3>
+          <ol>
+            <li>Write <code>rotY(θ)</code> and <code>rotZ(θ)</code> by the same projection logic we used for <code>rotX</code>.</li>
+            <li>Verify each one by visual inspection: at θ = 0 you should get the identity; at θ = 90° you should get a known signed permutation. Sketch this on paper.</li>
+            <li>Animate the point a = (0.3, 0.4, 0.5) as it rotates around y, then around z. Compare the trails — do they make sense given which axis is fixed?</li>
+            <li>Write a short MATLAB or browser-sandbox script that prints rotY(0), rotY(45), rotY(90), rotY(180). Confirm rotY(0) is I₃ and rotY(180) flips x and z.</li>
+          </ol>
+          <div class="homework-deliverables">
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 1</div>
+              <div class="deliverable-name">By-hand sketch</div>
+              <div class="deliverable-desc">A photo of your notebook page showing the projections and the resulting matrices for Ry and Rz.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 2</div>
+              <div class="deliverable-name">Code</div>
+              <div class="deliverable-desc">One <code>.m</code> file for each rotation, plus a short script that animates the point. Upload to Moodle.</div>
+            </div>
+            <div class="deliverable">
+              <div class="deliverable-num">Deliverable 3</div>
+              <div class="deliverable-name">60-second video</div>
+              <div class="deliverable-desc">Explain in your own voice what each matrix is doing geometrically, and what the trail of the rotated point looks like.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- footer nav -->
+      <nav class="lecture-footer-nav">
+        <a href="../index.html">
+          <span class="label">← Back</span>
+          <span class="lec-title">Course syllabus</span>
+        </a>
+        <a href="#" class="next" style="opacity:0.55; pointer-events:none">
+          <span class="label">Next →</span>
+          <span class="lec-title">Lecture 02 · coming</span>
+        </a>
+      </nav>
+    </main>
+
+    <!-- side ToC -->
+    <aside class="lecture-side">
+      <div class="lecture-side-title">In this lecture</div>
+      <ol class="lecture-toc">
+        <li><a href="#welcome">Welcome</a></li>
+        <li><a href="#dof">Degrees of freedom</a></li>
+        <li><a href="#frames">Reference frames</a></li>
+        <li><a href="#identity">The identity matrix</a></li>
+        <li><a href="#rotation-x">Rotation around X</a></li>
+        <li><a href="#try-it">Try it in the sandbox</a></li>
+        <li><a href="#point-rotation">Animating a point</a></li>
+        <li><a href="#recap">Quick recap</a></li>
+        <li><a href="#homework">Homework</a></li>
+      </ol>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    Built for TSI students · <a href="../index.html">Back to syllabus</a> · <a href="https://github.com/eamcmx/RoboticsCourse" target="_blank" rel="noopener">View on GitHub</a>
+  </footer>
+
+  <!-- KaTeX for math rendering -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"
+    onload="renderMathInElement(document.body, { delimiters: [{left:'$$', right:'$$', display:true}, {left:'$', right:'$', display:false}] });"></script>
+
+  <!-- inline math via direct KaTeX render of pre-built strings -->
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const wait = () => {
+        if (!window.katex) return setTimeout(wait, 30);
+        const renders = [
+          ['identity-formula', 'I_3 = \\begin{pmatrix} 1 & 0 & 0 \\\\ 0 & 1 & 0 \\\\ 0 & 0 & 1 \\end{pmatrix}'],
+          ['rx-formula', 'R_x(\\theta) = \\begin{pmatrix} 1 & 0 & 0 \\\\ 0 & \\cos\\theta & -\\sin\\theta \\\\ 0 & \\sin\\theta & \\cos\\theta \\end{pmatrix}'],
+          ['point-formula', 'a_{xyz} = R_x(\\theta) \\cdot a_{uvw}'],
+        ];
+        renders.forEach(([id, tex]) => {
+          const el = document.getElementById(id);
+          if (el) window.katex.render(tex, el, { displayMode: true, throwOnError: false });
+        });
+      };
+      wait();
+    });
+  </script>
+
+  <!-- mount widgets -->
+  <script type="module">
+    import { mountFrameViewer } from '../js/widgets/frame-viewer.js';
+    import { mountMatrixStepper, MATRIX_DEFS } from '../js/widgets/matrix-stepper.js';
+    import { mountCodeSandbox } from '../js/widgets/code-sandbox.js';
+    import { mountRotationAnimator } from '../js/widgets/rotation-animator.js';
+
+    document.querySelectorAll('[data-frame-viewer]').forEach(mountFrameViewer);
+    document.querySelectorAll('[data-matrix-stepper]').forEach(el =>
+      mountMatrixStepper(el, MATRIX_DEFS[el.dataset.id]));
+    document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
+    document.querySelectorAll('[data-rotation-animator]').forEach(mountRotationAnimator);
+
+    // ToC active-section tracking
+    const links = document.querySelectorAll('.lecture-toc a');
+    const sections = [...document.querySelectorAll('.lecture-section')];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => l.classList.toggle('is-active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -65% 0px' });
+    sections.forEach(s => observer.observe(s));
+  </script>
+
+<script>
+/* TSI Buddy — vanilla-JS chat widget for the TSI Dynamics course.
+ *
+ * Mount once per page:
+ *
+ *   TSIBuddy.mount({
+ *     systemPrompt: "You are TSI Buddy ...",   // required, the AUDITOR prompt
+ *     contextLabel: "docs/01_F_equals_ma.md",  // shown in the modal subtitle
+ *     openingLine:  "I'm reading the F=ma chapter ..."   // optional pre-fill
+ *   });
+ *
+ * The widget mounts a floating button (top-right of the viewport), a settings
+ * modal where the student pastes their Mistral API key, and a chat panel that
+ * streams responses progressively. API key persists in localStorage.
+ *
+ * Streams via Mistral's SSE endpoint (stream: true). Falls back to a single
+ * non-streaming response if the runtime doesn't expose ReadableStream.
+ *
+ * Designed to coexist with the React+htm widget already inside each hook
+ * page. They use the same localStorage keys so a student who pastes their
+ * key once gets it everywhere.
+ */
+(function () {
+  'use strict';
+
+  if (window.TSIBuddy && window.TSIBuddy.__loaded) return;
+
+  var KEY_LS    = 'tsi_mistral_key';
+  var MODEL_LS  = 'tsi_mistral_model';
+  var ENABLE_LS = 'tsi_buddy_enabled';
+
+  function lsGet(k, fb) { try { var v = localStorage.getItem(k); return v == null ? fb : v; } catch (e) { return fb; } }
+  function lsSet(k, v)  { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  /* ---------- Styles (injected once) ---------- */
+  var STYLE = `
+.tsi-buddy-btn {
+  position: fixed; top: 14px; right: 14px; z-index: 9000;
+  background: rgba(255,255,255,0.95); color: #1a3a5c;
+  border: 1px solid #cbd5e1; border-radius: 999px;
+  padding: 8px 14px; font: 600 13px/1 'Inter', system-ui, sans-serif;
+  box-shadow: 0 2px 6px rgba(15,23,42,0.12);
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.tsi-buddy-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(15,23,42,0.18); }
+.tsi-buddy-btn .tsi-buddy-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #94a3b8;
+}
+.tsi-buddy-btn.tsi-on .tsi-buddy-dot { background: #16a34a; box-shadow: 0 0 0 2px rgba(34,197,94,0.25); }
+.tsi-buddy-btn.tsi-on { border-color: #16a34a; color: #166534; }
+
+.tsi-buddy-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.55); z-index: 9100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.tsi-buddy-overlay[hidden] { display: none; }
+
+.tsi-buddy-modal {
+  background: white; border-radius: 12px;
+  max-width: 480px; width: 100%;
+  padding: 24px 26px;
+  box-shadow: 0 20px 60px rgba(15,23,42,0.35);
+  font: 400 14px/1.55 'Inter', system-ui, sans-serif;
+  color: #1e293b;
+}
+.tsi-buddy-modal h3 { margin: 0 0 8px; font-size: 1.2rem; color: #0f172a; }
+.tsi-buddy-modal .tsi-buddy-sub { color: #64748b; font-size: 0.92em; margin: 0 0 16px; }
+.tsi-buddy-modal label { display: block; margin-top: 14px; font-weight: 600; color: #334155; font-size: 0.9em; }
+.tsi-buddy-modal input[type="password"],
+.tsi-buddy-modal select,
+.tsi-buddy-modal textarea {
+  margin-top: 6px; width: 100%; box-sizing: border-box;
+  padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px;
+  font: inherit; color: #1e293b; background: #f8fafc;
+}
+.tsi-buddy-modal input[type="password"] { font-family: ui-monospace, Menlo, monospace; font-size: 0.92em; }
+.tsi-buddy-modal .tsi-buddy-toggle { display: flex; align-items: center; gap: 8px; margin-top: 14px; cursor: pointer; }
+.tsi-buddy-modal .tsi-buddy-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.tsi-buddy-modal button {
+  font: 600 13px/1 'Inter', system-ui, sans-serif;
+  padding: 9px 16px; border-radius: 6px; border: none; cursor: pointer;
+}
+.tsi-buddy-modal .tsi-buddy-secondary { background: white; color: #475569; border: 1px solid #cbd5e1; }
+.tsi-buddy-modal .tsi-buddy-primary   { background: #1565c0; color: white; }
+.tsi-buddy-modal .tsi-buddy-primary:hover { background: #0d47a1; }
+.tsi-buddy-modal .tsi-buddy-secondary:hover { background: #f1f5f9; }
+.tsi-buddy-modal small { color: #64748b; }
+
+.tsi-buddy-chat {
+  position: fixed; right: 14px; bottom: 14px; z-index: 9000;
+  width: 380px; max-width: calc(100vw - 28px);
+  height: 540px; max-height: calc(100vh - 80px);
+  background: white; border: 1px solid #cbd5e1; border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(15,23,42,0.25);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  font: 400 14px/1.55 'Inter', system-ui, sans-serif; color: #1e293b;
+}
+.tsi-buddy-chat[hidden] { display: none; }
+.tsi-buddy-chat-head {
+  background: linear-gradient(135deg, #1a3a5c 0%, #1e4d8c 100%);
+  color: white; padding: 12px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tsi-buddy-chat-head strong { font-size: 0.95em; }
+.tsi-buddy-chat-head small  { color: rgba(255,255,255,0.78); font-size: 0.78em; display: block; margin-top: 2px; }
+.tsi-buddy-chat-head button { background: transparent; border: none; color: white; cursor: pointer; font-size: 1.1em; line-height: 1; padding: 4px 8px; border-radius: 4px; }
+.tsi-buddy-chat-head button:hover { background: rgba(255,255,255,0.16); }
+.tsi-buddy-chat-body {
+  flex: 1 1 auto; overflow-y: auto; padding: 14px 14px 6px;
+  background: #f8fafc;
+}
+.tsi-buddy-bubble {
+  margin: 8px 0; padding: 10px 13px; border-radius: 10px;
+  word-wrap: break-word; overflow-wrap: anywhere; font-size: 0.93em;
+}
+.tsi-buddy-bubble.tsi-user      { background: #e3f2fd; color: #1a3a5c; border-bottom-right-radius: 2px; margin-left: 32px; }
+.tsi-buddy-bubble.tsi-assistant { background: white; border: 1px solid #e2e8f0; margin-right: 32px; }
+.tsi-buddy-bubble .tsi-buddy-role { font-size: 0.72em; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+.tsi-buddy-bubble.tsi-thinking { color: #94a3b8; font-style: italic; }
+/* Markdown typography inside bubbles (rendered for assistant replies). */
+.tsi-buddy-bubble .tsi-buddy-text > * { margin: 0; }
+.tsi-buddy-bubble .tsi-buddy-text > * + * { margin-top: 6px; }
+.tsi-buddy-bubble .tsi-buddy-text p { line-height: 1.55; }
+.tsi-buddy-bubble .tsi-buddy-text strong { font-weight: 700; color: #0f172a; }
+.tsi-buddy-bubble .tsi-buddy-text em { font-style: italic; }
+.tsi-buddy-bubble .tsi-buddy-text ul,
+.tsi-buddy-bubble .tsi-buddy-text ol { padding-left: 22px; }
+.tsi-buddy-bubble .tsi-buddy-text li { margin: 2px 0; }
+.tsi-buddy-bubble .tsi-buddy-text code {
+  background: rgba(15,23,42,0.06); padding: 0 4px; border-radius: 3px;
+  font-family: ui-monospace, Menlo, monospace; font-size: 0.92em;
+}
+.tsi-buddy-bubble .tsi-buddy-text pre {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;
+  padding: 8px 10px; overflow-x: auto;
+}
+.tsi-buddy-bubble .tsi-buddy-text pre code { background: transparent; padding: 0; }
+.tsi-buddy-bubble .tsi-buddy-text blockquote {
+  border-left: 3px solid #cbd5e1; padding: 2px 10px; color: #475569;
+  background: #f8fafc; border-radius: 4px;
+}
+.tsi-buddy-bubble .tsi-buddy-text h1,
+.tsi-buddy-bubble .tsi-buddy-text h2,
+.tsi-buddy-bubble .tsi-buddy-text h3,
+.tsi-buddy-bubble .tsi-buddy-text h4 { font-weight: 700; color: #0f172a; }
+.tsi-buddy-bubble .tsi-buddy-text h1 { font-size: 1.05em; }
+.tsi-buddy-bubble .tsi-buddy-text h2 { font-size: 1.0em; }
+.tsi-buddy-bubble .tsi-buddy-text h3,
+.tsi-buddy-bubble .tsi-buddy-text h4 { font-size: 0.95em; }
+.tsi-buddy-bubble .tsi-buddy-text hr { border: none; border-top: 1px solid #e2e8f0; }
+.tsi-buddy-bubble .tsi-buddy-text a { color: #1565c0; text-decoration: underline; }
+.tsi-buddy-error {
+  background: #fee2e2; color: #7f1d1d; border: 1px solid #fecaca;
+  padding: 8px 10px; border-radius: 6px; margin: 8px 14px; font-size: 0.85em;
+}
+.tsi-buddy-chat-foot {
+  border-top: 1px solid #e2e8f0; padding: 10px 12px;
+  display: flex; gap: 8px; align-items: flex-end;
+  background: white;
+}
+.tsi-buddy-chat-foot textarea {
+  flex: 1 1 auto; resize: none; min-height: 36px; max-height: 140px;
+  padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px;
+  font: inherit; color: #1e293b;
+}
+.tsi-buddy-chat-foot button {
+  font: 600 13px/1 'Inter', system-ui, sans-serif;
+  padding: 9px 14px; border-radius: 6px; border: none; cursor: pointer;
+  background: #1565c0; color: white;
+}
+.tsi-buddy-chat-foot button:disabled { background: #94a3b8; cursor: default; }
+.tsi-buddy-chat-foot button:hover:not(:disabled) { background: #0d47a1; }
+.tsi-buddy-startbar {
+  display: flex; gap: 8px; padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0; background: #fafbfc;
+}
+.tsi-buddy-startbar button {
+  flex: 1 1 auto; font: 600 13px/1 'Inter', system-ui, sans-serif;
+  padding: 9px 12px; border-radius: 6px; border: 1px solid #1565c0;
+  background: white; color: #1565c0; cursor: pointer;
+}
+.tsi-buddy-startbar button:hover { background: #e3f2fd; }
+@media (max-width: 480px) {
+  .tsi-buddy-chat { width: calc(100vw - 16px); right: 8px; bottom: 8px; height: calc(100vh - 90px); }
+}
+`;
+
+  function injectStyles() {
+    if (document.getElementById('tsi-buddy-styles')) return;
+    var s = document.createElement('style');
+    s.id = 'tsi-buddy-styles';
+    s.textContent = STYLE;
+    document.head.appendChild(s);
+  }
+
+  /* ---------- Markdown rendering ---------- */
+  // The buddy returns markdown (bold, italic, lists, code, headers).
+  // We lazily load `marked` from CDN and render assistant replies through it.
+  // Until marked is loaded (or if it fails to load), we fall back to plain
+  // text with newlines preserved as <br>.
+  function loadMarked() {
+    if (window.marked) return Promise.resolve(window.marked);
+    if (window.__tsiMarkedLoading) return window.__tsiMarkedLoading;
+    window.__tsiMarkedLoading = new Promise(function (resolve) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js';
+      s.async = true;
+      s.onload  = function () { resolve(window.marked || null); };
+      s.onerror = function () { resolve(null); };
+      document.head.appendChild(s);
+    });
+    return window.__tsiMarkedLoading;
+  }
+
+  // Light DOM sanitiser: walks the parsed tree and removes any tags / attrs
+  // that could execute code if the model went rogue. Allow-listing all
+  // safe markdown tags; strip everything else's dangerous attributes.
+  function sanitizeHTML(html) {
+    var div = document.createElement('div');
+    div.innerHTML = html;
+    var deny = ['script', 'style', 'iframe', 'object', 'embed', 'form',
+                'input', 'button', 'textarea', 'select', 'meta', 'link', 'base'];
+    deny.forEach(function (tag) {
+      Array.from(div.getElementsByTagName(tag)).forEach(function (n) { n.remove(); });
+    });
+    Array.from(div.querySelectorAll('*')).forEach(function (n) {
+      Array.from(n.attributes).forEach(function (a) {
+        var name = a.name.toLowerCase();
+        if (name.indexOf('on') === 0) { n.removeAttribute(a.name); return; }
+        if (name === 'href' || name === 'src' || name === 'srcset') {
+          var v = (a.value || '').replace(/\s/g, '');
+          if (/^javascript:/i.test(v) || /^data:text\/html/i.test(v)) {
+            n.removeAttribute(a.name);
+          }
+        }
+      });
+      // External links: open in new tab safely
+      if (n.tagName === 'A' && n.getAttribute('href')) {
+        n.setAttribute('target', '_blank');
+        n.setAttribute('rel', 'noopener noreferrer');
+      }
+    });
+    return div.innerHTML;
+  }
+
+  function escapeHTML(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function renderContent(text, isAssistant) {
+    var div = document.createElement('div');
+    div.className = 'tsi-buddy-text';
+    var raw = text == null ? '' : String(text);
+    if (isAssistant && window.marked && window.marked.parse) {
+      try {
+        var html = window.marked.parse(raw, { breaks: true, gfm: true, mangle: false, headerIds: false });
+        div.innerHTML = sanitizeHTML(html);
+        return div;
+      } catch (e) { /* fall through to plain text */ }
+    }
+    // Plain-text fallback (user messages, or assistant before marked loads)
+    div.innerHTML = escapeHTML(raw).replace(/\n/g, '<br>');
+    return div;
+  }
+
+  /* ---------- Streaming Mistral call ---------- */
+  function callMistralChat(apiKey, model, systemPrompt, messages, onDelta) {
+    return fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: model || 'mistral-small-latest',
+        temperature: 0.4,
+        max_tokens: 1500,
+        stream: true,
+        messages: [{ role: 'system', content: systemPrompt }].concat(messages)
+      })
+    }).then(function (r) {
+      if (!r.ok) {
+        return r.text().then(function (t) {
+          throw new Error('Mistral ' + r.status + ': ' + (t || 'request failed'));
+        });
+      }
+      if (!r.body || !r.body.getReader) {
+        return r.json().then(function (data) {
+          if (!data.choices || !data.choices[0]) throw new Error('Mistral returned no choices.');
+          var full = (data.choices[0].message.content || '').trim();
+          if (onDelta) onDelta(full);
+          return full;
+        });
+      }
+      var reader = r.body.getReader();
+      var decoder = new TextDecoder();
+      var buf = '';
+      var full = '';
+      function pump() {
+        return reader.read().then(function (res) {
+          if (res.done) return full.trim();
+          buf += decoder.decode(res.value, { stream: true });
+          var lines = buf.split('\n');
+          buf = lines.pop();
+          for (var i = 0; i < lines.length; i++) {
+            var ln = lines[i];
+            if (ln.indexOf('data: ') !== 0) continue;
+            var s = ln.substring(6).trim();
+            if (s === '[DONE]') return full.trim();
+            try {
+              var d = JSON.parse(s);
+              if (d.choices && d.choices[0] && d.choices[0].delta && d.choices[0].delta.content) {
+                full += d.choices[0].delta.content;
+                if (onDelta) onDelta(full);
+              }
+            } catch (e) {}
+          }
+          return pump();
+        });
+      }
+      return pump();
+    });
+  }
+
+  /* ---------- DOM helpers ---------- */
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === 'class') n.className = attrs[k];
+      else if (k === 'html') n.innerHTML = attrs[k];
+      else if (k === 'text') n.textContent = attrs[k];
+      else if (k.indexOf('on') === 0 && typeof attrs[k] === 'function') n.addEventListener(k.substring(2), attrs[k]);
+      else if (attrs[k] === true) n.setAttribute(k, '');
+      else if (attrs[k] != null && attrs[k] !== false) n.setAttribute(k, attrs[k]);
+    }
+    if (kids) (Array.isArray(kids) ? kids : [kids]).forEach(function (c) {
+      if (c == null) return;
+      n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    });
+    return n;
+  }
+
+  /* ---------- Mount ---------- */
+  function mount(opts) {
+    if (!opts || !opts.systemPrompt) {
+      console.warn('TSIBuddy.mount: systemPrompt required');
+      return null;
+    }
+    injectStyles();
+
+    // ---- State (closure-scoped) ----
+    var state = {
+      apiKey:  lsGet(KEY_LS, ''),
+      model:   lsGet(MODEL_LS, 'mistral-small-latest'),
+      enabled: lsGet(ENABLE_LS, '') === '1',
+      messages: [],     // {role, content}
+      pending: '',
+      status:  'idle',  // idle | loading | error
+      error:   '',
+      open:    false    // chat panel visible
+    };
+    if (state.apiKey) state.enabled = true; // having a key implies enabled
+
+    // ---- Floating button ----
+    var btnDot   = el('span', { class: 'tsi-buddy-dot' });
+    var btnLabel = el('span', null, '🤖 TSI Buddy');
+    var btnState = el('span', null, '');
+    var btn = el('button', {
+      class: 'tsi-buddy-btn',
+      title: 'TSI Buddy — your study companion',
+      onclick: function () {
+        if (state.apiKey) toggleChat();
+        else openSettings();
+      }
+    }, [btnDot, btnLabel, btnState]);
+    document.body.appendChild(btn);
+
+    // ---- Settings modal ----
+    var keyInput = el('input', {
+      type: 'password', autocomplete: 'off',
+      placeholder: 'paste your Mistral key (starts with "sk-…")',
+      value: state.apiKey,
+      oninput: function (e) { state.apiKey = e.target.value; }
+    });
+    var modelSelect = el('select', {
+      onchange: function (e) { state.model = e.target.value; }
+    }, ['mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest'].map(function (m) {
+      var o = el('option', { value: m }, m + (m === 'mistral-small-latest' ? ' (recommended)' : ''));
+      if (m === state.model) o.selected = true;
+      return o;
+    }));
+    var enableBox = el('input', {
+      type: 'checkbox',
+      onchange: function (e) { state.enabled = !!e.target.checked; }
+    });
+    enableBox.checked = state.enabled;
+    var modalCard = el('div', { class: 'tsi-buddy-modal', onclick: function (e) { e.stopPropagation(); } }, [
+      el('h3', null, '🤖 TSI Buddy'),
+      el('p', { class: 'tsi-buddy-sub' }, opts.contextLabel
+        ? ('You are reading: ' + opts.contextLabel + '. The buddy reads the page context and helps you understand worked examples — it does not give you the answer to your homework.')
+        : 'A study companion. The buddy helps you understand the worked examples on this page.'),
+      el('label', { class: 'tsi-buddy-toggle' }, [enableBox, el('span', null, 'Enable TSI Buddy on this page')]),
+      el('label', null, 'Mistral API key'),
+      keyInput,
+      el('label', null, 'Model'),
+      modelSelect,
+      el('p', null, [el('small', null, 'Get a free key at '), el('a', { href: 'https://console.mistral.ai/api-keys/', target: '_blank' }, 'console.mistral.ai'), el('small', null, '. The key stays in your browser only.')]),
+      el('div', { class: 'tsi-buddy-actions' }, [
+        el('button', { class: 'tsi-buddy-secondary', onclick: function () { state.apiKey = ''; keyInput.value = ''; } }, 'Clear key'),
+        el('button', { class: 'tsi-buddy-primary',   onclick: function () { saveSettings(); } }, 'Save')
+      ])
+    ]);
+    var modalOverlay = el('div', { class: 'tsi-buddy-overlay', hidden: true, onclick: function () { closeSettings(); } }, [modalCard]);
+    document.body.appendChild(modalOverlay);
+
+    // ---- Chat panel ----
+    var chatBody = el('div', { class: 'tsi-buddy-chat-body' });
+    var chatErr  = el('div', { class: 'tsi-buddy-error', hidden: true });
+    var inputBox = el('textarea', {
+      rows: 1, placeholder: 'Ask about this page…',
+      onkeydown: function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendUserMessage();
+        }
+      },
+      oninput: function (e) { state.pending = e.target.value; sendBtn.disabled = !canSend(); autosize(e.target); }
+    });
+    var sendBtn = el('button', {
+      onclick: function () { sendUserMessage(); }
+    }, 'Send');
+    sendBtn.disabled = true;
+
+    var startBar = el('div', { class: 'tsi-buddy-startbar' });
+
+    var chatFoot = el('div', { class: 'tsi-buddy-chat-foot' }, [inputBox, sendBtn]);
+
+    var chatHead = el('div', { class: 'tsi-buddy-chat-head' }, [
+      el('div', null, [
+        el('strong', null, '🤖 TSI Buddy'),
+        opts.contextLabel ? el('small', null, opts.contextLabel) : null
+      ]),
+      el('div', null, [
+        el('button', { title: 'Settings', onclick: function () { openSettings(); } }, '⚙'),
+        el('button', { title: 'Reset chat', onclick: function () { resetChat(); } }, '↺'),
+        el('button', { title: 'Close', onclick: function () { closeChat(); } }, '×')
+      ])
+    ]);
+
+    var chatPanel = el('div', { class: 'tsi-buddy-chat', hidden: true }, [
+      chatHead, startBar, chatErr, chatBody, chatFoot
+    ]);
+    document.body.appendChild(chatPanel);
+
+    // ---- Render ----
+    function refreshButton() {
+      if (state.apiKey && state.enabled) { btn.classList.add('tsi-on'); btnState.textContent = 'ON'; }
+      else                                { btn.classList.remove('tsi-on'); btnState.textContent = 'off'; }
+    }
+    function autosize(t) {
+      t.style.height = 'auto';
+      t.style.height = Math.min(140, Math.max(36, t.scrollHeight)) + 'px';
+    }
+    function canSend() {
+      return !!(state.apiKey && state.enabled && state.pending.trim() && state.status !== 'loading');
+    }
+    function refreshSendBtn() { sendBtn.disabled = !canSend(); }
+    function refreshStartBar() {
+      while (startBar.firstChild) startBar.removeChild(startBar.firstChild);
+      if (state.messages.length > 0) { startBar.style.display = 'none'; return; }
+      startBar.style.display = 'flex';
+      if (opts.openingLine) {
+        startBar.appendChild(el('button', {
+          onclick: function () { startWith(opts.openingLine); }
+        }, '🚀 Start with: "' + opts.openingLine.substring(0, 50) + (opts.openingLine.length > 50 ? '…' : '') + '"'));
+      }
+      startBar.appendChild(el('button', {
+        onclick: function () { startWith('Help me understand the worked example on this page.'); }
+      }, '💡 Generic walkthrough'));
+    }
+    function refreshChat() {
+      while (chatBody.firstChild) chatBody.removeChild(chatBody.firstChild);
+      state.messages.forEach(function (m, i) {
+        var thinking = (state.status === 'loading' && i === state.messages.length - 1 && m.role === 'assistant' && !m.content);
+        var displayText = m.content || (thinking ? '…' : '');
+        var contentDiv = thinking
+          ? (function () { var d = document.createElement('div'); d.className = 'tsi-buddy-text'; d.textContent = '…'; return d; })()
+          : renderContent(displayText, m.role === 'assistant');
+        var bubble = el('div', { class: 'tsi-buddy-bubble tsi-' + m.role }, [
+          el('div', { class: 'tsi-buddy-role' }, m.role === 'assistant' ? '🤖 TSI Buddy' : '🧑 You'),
+          contentDiv
+        ]);
+        if (thinking) bubble.classList.add('tsi-thinking');
+        chatBody.appendChild(bubble);
+      });
+      if (state.status === 'error' && state.error) {
+        chatErr.textContent = 'API error: ' + state.error;
+        chatErr.hidden = false;
+      } else {
+        chatErr.hidden = true;
+      }
+      // scroll to bottom
+      requestAnimationFrame(function () { chatBody.scrollTop = chatBody.scrollHeight; });
+      refreshStartBar();
+      refreshSendBtn();
+    }
+
+    // ---- Behaviour ----
+    function openSettings()  { modalOverlay.hidden = false; setTimeout(function () { keyInput.focus(); }, 50); }
+    function closeSettings() { modalOverlay.hidden = true; }
+    function saveSettings() {
+      lsSet(KEY_LS, state.apiKey || '');
+      lsSet(MODEL_LS, state.model || 'mistral-small-latest');
+      lsSet(ENABLE_LS, state.enabled ? '1' : '');
+      closeSettings();
+      refreshButton();
+      if (state.apiKey && state.enabled) openChat();
+    }
+    function openChat()  { state.open = true; chatPanel.hidden = false; refreshChat(); inputBox.focus(); }
+    function closeChat() { state.open = false; chatPanel.hidden = true; }
+    function toggleChat(){ state.open ? closeChat() : openChat(); }
+    function resetChat() { state.messages = []; state.pending = ''; state.status = 'idle'; state.error = ''; inputBox.value = ''; refreshChat(); }
+    function startWith(line) {
+      inputBox.value = line;
+      state.pending = line;
+      autosize(inputBox);
+      sendUserMessage();
+    }
+    function sendUserMessage() {
+      var draft = (state.pending || '').trim();
+      if (!draft || !state.apiKey || state.status === 'loading') return;
+      var userMsg = { role: 'user', content: draft };
+      state.messages.push(userMsg);
+      state.messages.push({ role: 'assistant', content: '' });
+      state.pending = ''; inputBox.value = ''; autosize(inputBox);
+      state.status = 'loading'; state.error = '';
+      refreshChat();
+      callMistralChat(state.apiKey, state.model, opts.systemPrompt, state.messages.slice(0, -1), function (full) {
+        var last = state.messages[state.messages.length - 1];
+        if (last && last.role === 'assistant') {
+          last.content = full;
+          refreshChat();
+        }
+      }).then(function () {
+        state.status = 'idle';
+        refreshChat();
+      }).catch(function (err) {
+        var last = state.messages[state.messages.length - 1];
+        if (last && last.role === 'assistant' && !last.content) state.messages.pop();
+        state.status = 'error';
+        state.error = (err && err.message) || String(err);
+        refreshChat();
+      });
+    }
+
+    refreshButton();
+    refreshChat();
+
+    // Lazily fetch marked so assistant replies render markdown. If it
+    // arrives mid-conversation, re-render so any plain-text bubbles get
+    // upgraded to formatted ones.
+    loadMarked().then(function (m) { if (m) refreshChat(); });
+
+    // First-time arrival: nudge the modal open if no key set
+    // (but not too aggressively — only on explicit click of the button).
+
+    return {
+      open: openChat, close: closeChat, toggle: toggleChat,
+      reset: resetChat,
+      destroy: function () {
+        try { document.body.removeChild(btn); } catch (e) {}
+        try { document.body.removeChild(modalOverlay); } catch (e) {}
+        try { document.body.removeChild(chatPanel); } catch (e) {}
+      }
+    };
+  }
+
+  window.TSIBuddy = { mount: mount, __loaded: true };
+})();
+
+</script>
+<script>(function(){
+  function go(){ if(window.TSIBuddy){ TSIBuddy.mount({"systemPrompt":"You are TSI Buddy, a friendly tutor on the lecture page \"Lecture 01 · Frames of reference, the identity matrix, rotation around X\".\n\nYour knowledge is ONLY the LECTURE GROUND TRUTH below.\n\nRules:\n1. Answer from that material. Read it for meaning — explaining,\n   rephrasing, working its examples and connecting its points is\n   your job. Synthesising an answer from what the material says is\n   not \"inventing\".\n2. If the material does not cover something, say so in one sentence\n   and stop. Never invent facts, names, emails, links, places,\n   rooms, dates, or anything not in the material — a plain \"that is\n   not in the lecture material\" is the correct answer to a gap.\n3. Keep replies short — 2–4 sentences — unless the student asks for\n   more depth or worked steps. Mirror the student's language.\n4. Don't hand over self-check / quiz answers; point to the section\n   that explains them instead.\n5. Write maths with $...$ (inline) and $...$ (display).\n\n── LECTURE GROUND TRUTH ──\n## What this lecture is about\nThis is the opening lecture of *Kinematics and Dynamics of Robot Manipulators*, where we begin a semester-long worked example by asking how to describe where something is in 3D space in a way a computer can use. The whole course will eventually build up to two industrial robots running a master–slave choreography on a moving plate, but today we start with the very first piece: frames of reference, the identity matrix, and rotation around the x axis.\n\n## Key definitions and notation\n- Degree of freedom — one independent direction in which a rigid body can move; a free body in 3D has six (three translation, three rotation) — no special symbol\n- Reference frame — three orthogonal unit vectors meeting at an origin, used to describe position relative to something — fixed frame uses x, y, z; mobile frame uses u, v, w\n- Fixed frame — the reference frame we measure relative to, e.g. attached to the base of the robot — axes x (red), y (green), z (blue); called \"frame 0\" when paired with a tool frame\n- Mobile frame — the frame attached to the moving body, e.g. the tool — axes u (orange), v (purple), w (cyan); called \"frame 1\"\n- Rotation matrix — a 3×3 matrix whose columns are the mobile frame's axes (u, v, w) expressed in the fixed frame's basis (x, y, z) — symbol $R$\n- Identity matrix — the rotation matrix when the two frames coincide; ones on the diagonal, zeros elsewhere — symbol $I_3$\n- Rotation about the fixed x axis by angle θ — the specific case where u stays put along x and v, w swing through the y–z plane — symbol $R_x(\\theta)$\n- Joint contribution — each robot joint either contributes a degree of freedom (rotational or prismatic motion the robot can choose) or removes one — no special symbol\n- Colour convention — x is red, y is green, z is blue; used identically in MATLAB, RoboDK, and the browser sandbox\n\n## Equations the buddy must know\n$ I_3 = \\begin{bmatrix} 1 & 0 & 0 \\\\ 0 & 1 & 0 \\\\ 0 & 0 & 1 \\end{bmatrix} $\nRead as: \"no rotation has happened yet\" — the mobile frame's u, v, w sit exactly on top of the fixed frame's x, y, z. Entries are pure projections (dimensionless).\n\n$ R_x(\\theta) = \\begin{bmatrix} 1 & 0 & 0 \\\\ 0 & \\cos\\theta & -\\sin\\theta \\\\ 0 & \\sin\\theta & \\cos\\theta \\end{bmatrix} $\nRead as: rotate the mobile frame by angle $\\theta$ around the fixed x axis. The first column (1, 0, 0) is u, which doesn't move because it lies along x. The second and third columns are v and w after they swing through $\\theta$ in the y–z plane. $\\theta$ is in degrees in the sandbox/MATLAB convention used here (`cosd`, `sind`, `rotX` in degrees).\n\n$ a_{xyz} = R \\cdot a_{uvw} $\nRead as: to get a point's coordinates in the fixed frame, multiply the rotation matrix by the point's coordinates in the mobile frame. The point itself doesn't move inside the mobile frame; $R$ just translates the description across frames. All entries are lengths in the same unit as the original point.\n\n## Worked examples on the page\n**Building the identity matrix entry by entry (frames coincident).** Setup: the two frames overlap perfectly — same origin, same orientation. Method: ask \"how much of u lies along x of the fixed frame?\" — all of it, so 1; \"along y?\" — 0; \"along z?\" — 0. Repeat for v and for w. The columns of the rotation matrix are exactly the components of u, v, w expressed in x, y, z. Punchline: the result is $I_3$, \"no rotation has happened yet.\"\n\n**Deriving $R_x(\\theta)$ entry by entry.** Setup: mobile frame rotated by θ around the fixed x axis. Method: project each mobile axis onto each fixed axis. u doesn't move because it lies along x; v tilts up out of the y direction; w tilts back along y. Punchline: the matrix shown above, with the 1 in the top-left and the cos/sin block in the y–z plane. Sanity checks supplied on the page: at θ = 0 every cos becomes 1 and every sin becomes 0, collapsing $R_x$ to $I_3$; at θ = 90° cos = 0 and sin = 1, so v ends up fully along z and w ends up fully along −y.\n\n**Sandbox prediction — `rotX(90)`.** [SELF-CHECK — don't reveal the answer.] The page asks the student to predict where v and w will end up at `rotX(90)` *before* running the cell, then verify against the slider widget at 90°. Don't hand over the result; walk them through projecting v and w onto x, y, z at 90° themselves.\n\n**Animating the point $a = (0.3, 0.4, 0.5)$.** Setup: a point defined in the mobile frame at coordinates (0.3, 0.4, 0.5). Method: as the mobile frame rotates around x, the point's coordinates relative to the fixed frame change, even though from the mobile frame's perspective the point hasn't moved at all. Apply $a_{xyz} = R \\cdot a_{uvw}$. Punchline: the point sweeps out an arc in the fixed frame as θ varies — the whole idea of representing motion as matrix multiplication.\n\n**Homework verification cases (not yet solved on the page).** [SELF-CHECK — don't reveal the answer.] The student is asked to derive $R_y(\\theta)$ and $R_z(\\theta)$ by the same projection logic, and to confirm by code that `rotY(0)` is $I_3$ and that `rotY(180)` flips x and z. Guide them to project axes themselves; don't write out $R_y$ or $R_z$ for them — those matrices are not given on the lecture page.\n\n## Gotchas, sign conventions, units\n- The colour convention is fixed and shared across MATLAB, RoboDK, and the browser sandbox: **x = red, y = green, z = blue**. Don't let students re-colour mentally.\n- The columns of $R$ are *the mobile axes expressed in the fixed basis* — not rows, and not the other way around. This is the move the whole derivation rests on.\n- For $R_x(\\theta)$ at θ = 90°, **w ends up along −y** (negative), not +y. The minus sign is the place students lose marks.\n- $R_x$ acts in the y–z plane only; the x column is untouched because u lies along x. If a student's derived matrix changes the first column, the projection was wrong.\n- Angles in the sandbox and in the lecturer's MATLAB convention are in **degrees** — `cosd`, `sind`, and `rotX`/`rotY`/`rotZ` are defined in degrees, \"exactly the way you'd write them in MATLAB.\"\n- $I_3$ should always pop out at θ = 0. If it doesn't, the cos/sin block has a sign or placement error.\n- Translations and rotations are independent — that independence is what lets us separate the position matrix from the orientation matrix later. Don't conflate them yet; today is orientation only.\n- Useful MATLAB habit the lecturer flagged: when you don't know a function, type your best guess (`line`, `plot3`, `view`, `cosd`, `sind`) and read its help — the names do roughly what they imply.\n- The point in the animating example doesn't move inside the mobile frame; only its fixed-frame description changes. Students often think the point itself is moving.\n\n## Page map\n- **Welcome** — framing for the whole semester (master–slave choreography on a moving plate as the end goal), tools used (MATLAB, RoboDK, browser sandbox), and the x-red/y-green/z-blue convention.\n- **Degrees of freedom** — definition of a DoF, the six DoF of a free body in 3D, and how joints contribute or remove them.\n- **Reference frames** — why position is relative, and what a Cartesian frame is (three orthogonal unit vectors at an origin).\n- **Two coordinate frames** (interactive widget) — fixed frame x/y/z vs mobile frame u/v/w; slider rotates the mobile frame around x and shows the live rotation matrix.\n- **The identity matrix** — projection logic for the coincident-frames case; build $I_3$ entry by entry via a click-to-reveal stepper.\n- **Rotation around X** — projection-derived $R_x(\\theta)$ with a geometry widget and an entry-by-entry stepper; the θ = 0 and θ = 90° sanity checks live here.\n- **Try it in the sandbox** — browser math.js evaluator with `rotX`, `rotY`, `rotZ` predefined in degrees; the `rotX(90)` predict-then-run self-check is here.\n- **Animating a point** — the $a = (0.3, 0.4, 0.5)$ example and the $a_{xyz} = R \\cdot a_{uvw}$ statement.\n- **Quick recap** — bullet summary of the lecture, useful for orienting students who skipped ahead.\n- **Homework 01** — by-hand derivation of $R_y$ and $R_z$, code for animating the point around y and z, the `rotY(0)/45/90/180` check, and the three deliverables (sketch, code, 60-second video).","contextLabel":"Lecture 01 · Frames of reference, the identity matrix, rotation around X","openingLine":"I'm reading Lecture 01 · Frames of reference, the identity matrix, rotation around X. Can you walk me through…","temperature":0.4,"model":"mistral-small-latest"}); } else { setTimeout(go, 60); } }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", go); else go();
+})();</script>
+</body>
+</html>
