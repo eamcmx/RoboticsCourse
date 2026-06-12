@@ -1,8 +1,78 @@
 # Kinematics & Dynamics of Robot Manipulators — Interactive Course
 
-An interactive companion to a 21-lecture robotics course at TSI. Live 3D coordinate frames, click-to-reveal matrix derivations, and a browser-based MATLAB-style sandbox — all static HTML, no build step, hostable on GitHub Pages.
+An interactive companion to a robotics course at TSI. Live 3D coordinate frames, click-to-reveal matrix derivations, a browser-based MATLAB-style sandbox, and animated forward/inverse-kinematics and dynamics demos — all static HTML, no build step, hosted on GitHub Pages.
 
-**Live site (after deploy):** `https://eamcmx.github.io/RoboticsCourse/`
+**Live site:** **https://eamcmx.github.io/RoboticsCourse/**
+
+The arc follows the lecture course one-for-one: geometry first, code second, animation third. Modules 1–4 (kinematics, lectures 01–20) are complete; Module 5 (dynamics) has begun; Module 6 is the wrap-up.
+
+---
+
+## Lecture index
+
+Every lecture below is a single self-contained HTML page. Click **▶ Open** to view the published page; the title links to the source file.
+
+### Module 1 · Frames, rotations, transforms
+
+| # | Lecture | Live |
+|---|---|---|
+| 01 | [Frames of reference, the identity matrix, rotation around X](lectures/01-frames-of-reference.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/01-frames-of-reference.html) |
+| 02 | [Rotation around Y and Z, composite rotations](lectures/02-rotations-y-z.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/02-rotations-y-z.html) |
+| 03 | [Translations and homogeneous transforms](lectures/03-translations-homogeneous-transforms.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/03-translations-homogeneous-transforms.html) |
+| 04 | [Inverse of a homogeneous transform](lectures/04-inverse-of-a-transform.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/04-inverse-of-a-transform.html) |
+
+### Module 2 · Forward kinematics
+
+| # | Lecture | Live |
+|---|---|---|
+| 05 | [Rigid-body motion: a reusable box function](lectures/05-rigid-body-motion.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/05-rigid-body-motion.html) |
+| 06 | [PPP robot — three prismatic joints](lectures/06-ppp-robot.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/06-ppp-robot.html) |
+| 07 | [RPP robot and the GUI with sliders](lectures/07-rpp-and-gui.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/07-rpp-and-gui.html) |
+| 08 | [SCARA: Adept Cobra S800](lectures/08-scara-cobra.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/08-scara-cobra.html) |
+| 09 | [Universal Robots UR5](lectures/09-ur5.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/09-ur5.html) |
+| 10 | [The Denavit–Hartenberg convention](lectures/10-dh-convention.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/10-dh-convention.html) |
+
+### Module 3 · Inverse kinematics
+
+| # | Lecture | Live |
+|---|---|---|
+| 11 | [The Jacobian — joint space ↔ task space](lectures/11-jacobian.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/11-jacobian.html) |
+| 12 | [Newton–Raphson for inverse kinematics](lectures/12-newton-raphson-ik.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/12-newton-raphson-ik.html) |
+| 13 | [Joint limits and singularities](lectures/13-limits-singularities.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/13-limits-singularities.html) |
+
+### Module 4 · Trajectory planning & integration
+
+| # | Lecture | Live |
+|---|---|---|
+| 14 | [move J — free joint motion](lectures/14-move-j.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/14-move-j.html) |
+| 15 | [move L — linear motion in task space](lectures/15-move-l.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/15-move-l.html) |
+| 16 | [move C — circular motion](lectures/16-move-c.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/16-move-c.html) |
+| 17 | [Arduino + joysticks: a homemade teach-pendant](lectures/17-arduino-teach-pendant.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/17-arduino-teach-pendant.html) |
+| 18 | [RoboDK API — MATLAB ↔ simulator](lectures/18-robodk-api.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/18-robodk-api.html) |
+| 19 | [Trajectories on a moving plate](lectures/19-trajectories-on-moving-plate.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/19-trajectories-on-moving-plate.html) |
+| 20 | [Master–slave: two robots, one task](lectures/20-master-slave.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/20-master-slave.html) |
+
+### Module 5 · Dynamics
+
+| # | Lecture | Status | Live |
+|---|---|---|---|
+| 22 | [Introduction to robot dynamics](lectures/22-intro-dynamics.html) | **Ready** | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/22-intro-dynamics.html) |
+| 23 | Energy-based approach & the Lagrangian | Coming | — |
+| 24 | Worked example: 2-link planar arm with tip masses | Coming | — |
+| 25 | Extended 2-DOF simulator: feel the equations | Coming | — |
+| 26 | Lagrangian formulation for the general robot | Coming | — |
+| 27 | Case study: Mitsubishi MoveMaster RV-M1 | Coming | — |
+| 28 | Understanding D, h, and c term by term | Coming | — |
+
+### Module 6 · Wrap-up
+
+| # | Lecture | Live |
+|---|---|---|
+| 29 | [Course wrap-up & portfolio review](lectures/29-wrap-up.html) | [▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/29-wrap-up.html) |
+
+> **Alternate build:** an expanded, long-form build of Lecture 01 lives at
+> [`lectures/lecture-01-frames-of-reference-the-identity-matrix-rotation-around-x/`](lectures/lecture-01-frames-of-reference-the-identity-matrix-rotation-around-x/index.html)
+> ([▶ Open](https://eamcmx.github.io/RoboticsCourse/lectures/lecture-01-frames-of-reference-the-identity-matrix-rotation-around-x/)).
 
 ---
 
@@ -10,23 +80,33 @@ An interactive companion to a 21-lecture robotics course at TSI. Live 3D coordin
 
 ```
 RoboticsCourse/
-├── index.html                       # Course landing + 21-lecture syllabus
+├── index.html                       # Course landing + full syllabus (all modules)
 ├── .nojekyll                        # disable Jekyll on GitHub Pages
+├── deploy.sh                        # one-shot deploy helper
 ├── README.md                        # this file
 ├── css/
 │   └── main.css                     # Visual system: typography, layout, widgets
 ├── js/
-│   └── widgets/
-│       ├── frame-viewer.js          # Three.js — two coordinate frames + sliders
-│       ├── matrix-stepper.js        # Click-to-reveal Socratic matrix derivation
-│       ├── code-sandbox.js          # math.js — MATLAB-style helpers in browser
-│       └── rotation-animator.js     # Animated point under a rotation
-├── lectures/
-│   └── 01-frames-of-reference.html  # First lecture (complete prototype)
-└── assets/                          # Images / icons (currently empty)
+│   ├── widgets/
+│   │   ├── frame-viewer.js          # Three.js — two coordinate frames + sliders
+│   │   ├── composite-viewer.js      # Composite Rx·Ry·Rz rotations
+│   │   ├── transform-viewer.js      # 4×4 homogeneous transforms
+│   │   ├── matrix-stepper.js        # Click-to-reveal Socratic matrix derivation
+│   │   ├── code-sandbox.js          # math.js — MATLAB-style helpers in browser
+│   │   ├── rotation-animator.js     # Animated point under a rotation
+│   │   ├── robot-viewer.js          # Articulated forward-kinematics chains
+│   │   ├── jacobian-viewer.js       # 2-link Jacobian columns + det(J) gauge
+│   │   └── dynamic-comparison.js    # Twin 2-link arms: kinematic vs full dynamics
+│   └── robots/
+│       └── index.js                 # Shared robot models (PPP, RPP, SCARA, UR5, …)
+└── lectures/
+    ├── 01-frames-of-reference.html … 20-master-slave.html
+    ├── 22-intro-dynamics.html
+    ├── 29-wrap-up.html
+    └── lecture-01-…/index.html      # alternate long-form Lecture 01 build
 ```
 
-No build step, no bundler, no node_modules. Three.js, math.js, and KaTeX are loaded from `cdn.jsdelivr.net` via an [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap), so each lecture page is a single self-contained HTML file.
+No build step, no bundler, no `node_modules`. Three.js, math.js, and KaTeX are loaded from `cdn.jsdelivr.net` via an [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap), so each lecture page is a single self-contained HTML file.
 
 ---
 
@@ -63,36 +143,22 @@ Stop the server with `Ctrl+C`.
 
 ## Deploying to GitHub Pages
 
-The first time:
-
-```bash
-cd RoboticsCourse
-git init
-git branch -m main
-git add -A
-git commit -m "Initial commit: course landing + Lecture 01 prototype"
-git remote add origin https://github.com/eamcmx/RoboticsCourse.git
-git push -u origin main
-```
-
-Then on GitHub: **Settings → Pages → Source = "Deploy from a branch" → Branch = main, root `/`**.
-Pages will publish at `https://eamcmx.github.io/RoboticsCourse/` within a minute or two.
-
-For subsequent updates:
+The site is already published from the `main` branch root at
+`https://eamcmx.github.io/RoboticsCourse/` (**Settings → Pages → Source = "Deploy from a branch" → Branch = main, root `/`**). It auto-redeploys on every push:
 
 ```bash
 git add -A && git commit -m "..." && git push
 ```
 
-The site auto-redeploys on push.
+`deploy.sh` wraps the add/commit/push for convenience.
 
 ---
 
 ## How to add a new lecture
 
-Each lecture is one HTML file in `lectures/`. The template is the same for all 21 lectures — copy `01-frames-of-reference.html`, change the title, swap the section content, and reuse the widgets.
+Each lecture is one HTML file in `lectures/`. Copy the closest existing lecture of the same kind (a rotation lecture, a robot lecture, a trajectory lecture…), change the title, swap the section content, and reuse the widgets.
 
-### 1. Copy the template
+### 1. Copy a template
 
 ```bash
 cp lectures/01-frames-of-reference.html lectures/02-rotations-y-z.html
@@ -104,7 +170,7 @@ Edit the `<title>`, `<h1 class="lecture-title">`, eyebrow, subtitle, and the sid
 
 ### 3. Drop in widgets
 
-The four widgets are designed to be reusable. Each one mounts itself onto any element with the right `data-*` attribute. To use them, the page needs the import map (already in the template) and this mount script at the bottom (also already there):
+Each widget mounts itself onto any element carrying the right `data-*` attribute. The page needs the import map (already in the template) and a mount script at the bottom. The original four widgets mount like this:
 
 ```js
 import { mountFrameViewer } from '../js/widgets/frame-viewer.js';
@@ -118,6 +184,12 @@ document.querySelectorAll('[data-matrix-stepper]').forEach(el =>
 document.querySelectorAll('[data-code-sandbox]').forEach(mountCodeSandbox);
 document.querySelectorAll('[data-rotation-animator]').forEach(mountRotationAnimator);
 ```
+
+The later modules add more widgets that follow the same `data-*` + `mount*` pattern —
+`composite-viewer.js` (composite rotations), `transform-viewer.js` (4×4 transforms),
+`robot-viewer.js` (articulated FK chains, backed by `js/robots/index.js`),
+`jacobian-viewer.js` (Jacobian columns + `det(J)` gauge), and `dynamic-comparison.js`
+(twin-arm kinematic-vs-dynamic demo). Copy the relevant lecture to see the exact mount call and `data-*` attributes for each.
 
 #### Frame viewer
 
@@ -135,7 +207,7 @@ document.querySelectorAll('[data-rotation-animator]').forEach(mountRotationAnima
 <div data-matrix-stepper data-id="rx"></div>
 ```
 
-`data-id` must match a key in `MATRIX_DEFS` (defined in `matrix-stepper.js`). Today the available IDs are `identity`, `rx`, `ry`, `rz`. To add a new one (for example, the SCARA forward kinematics), open `matrix-stepper.js` and add an entry:
+`data-id` must match a key in `MATRIX_DEFS` (defined in `matrix-stepper.js`). To add a new one (for example, the SCARA forward kinematics), open `matrix-stepper.js` and add an entry:
 
 ```js
 export const MATRIX_DEFS = {
@@ -190,10 +262,10 @@ Inline math: `$R_x(\theta)$`. Display math: wrap a `<div class="math-display" id
 
 ### 6. Add the lecture to the syllabus on `index.html`
 
-Find the matching card in `index.html` (it's already stubbed for all 21 lectures) and:
+Find the matching card in `index.html` and:
 - Change `class="lecture-card is-disabled"` to `class="lecture-card"`
-- Wrap it in `<a href="lectures/02-...html">` (the existing template card uses `<a>` for ready lectures)
-- Change the `is-soon` chip to `is-ready`
+- Point its `<a href="lectures/…html">` at the new file
+- Switch the chip from `○ Coming` to `● Ready`
 
 ---
 
@@ -216,19 +288,16 @@ Find the matching card in `index.html` (it's already stubbed for all 21 lectures
 
 ---
 
-## What's done & what's next
+## Status at a glance
 
-| Lecture | Title | Status |
+| Module | Lectures | Status |
 |---|---|---|
-| 01 | Frames of reference, identity matrix, Rx | **Ready** |
-| 02 | Rotation around y and z, composite rotations | Stub on syllabus |
-| 03 | Translations & homogeneous transforms | Stub |
-| 04 | Inverse of a homogeneous transform | Stub |
-| 05–10 | Module 2: forward kinematics (PPP, RPP, SCARA, UR5, DH) | Stubs |
-| 11–13 | Module 3: inverse kinematics (Jacobian, Newton-Raphson, limits) | Stubs |
-| 14–21 | Module 4: trajectories, Arduino, RoboDK, master-slave | Stubs |
-
-The 20 stub cards are visible in the syllabus; replacing each one is the same template-fill operation.
+| 1 · Frames, rotations, transforms | 01–04 | **Live** |
+| 2 · Forward kinematics | 05–10 | **Live** |
+| 3 · Inverse kinematics | 11–13 | **Live** |
+| 4 · Trajectory planning & integration | 14–20 | **Live** |
+| 5 · Dynamics | 22 live; 23–28 coming | In progress |
+| 6 · Wrap-up | 29 | **Live** |
 
 ---
 
