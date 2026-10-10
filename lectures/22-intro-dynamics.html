@@ -1658,11 +1658,15 @@ for (const [id, Comp] of mounts) {
  *   });
  *
  * The widget mounts a floating button (top-right of the viewport), a settings
- * modal where the student pastes their Mistral API key, and a chat panel that
- * streams responses progressively. API key persists in localStorage.
+ * modal where the student chooses an AI service and pastes their own API key,
+ * and a chat panel that streams responses progressively. The key persists in
+ * localStorage and goes straight from the browser to that service.
  *
- * Streams via Mistral's SSE endpoint (stream: true). Falls back to a single
- * non-streaming response if the runtime doesn't expose ReadableStream.
+ * Two services, same chat-completions dialect, both streamed over SSE
+ * (stream: true) with a single non-streaming response as the fallback when
+ * the runtime doesn't expose ReadableStream:
+ *   - Groq:    free keys, for anyone arriving new;
+ *   - Mistral: for a key the student already has.
  *
  * Designed to coexist with the React+htm widget already inside each hook
  * page. They use the same localStorage keys so a student who pastes their
@@ -1670,15 +1674,127 @@ for (const [id, Comp] of mounts) {
  */
 (function () {
   'use strict';
+  /* One file serves every generator. A mistake in it must not take the rest
+     of a lecture page's script down with it, so the whole body is guarded. */
+  try {
 
   if (window.TSIBuddy && window.TSIBuddy.__loaded) return;
 
-  var KEY_LS    = 'tsi_mistral_key';
-  var MODEL_LS  = 'tsi_mistral_model';
-  var ENABLE_LS = 'tsi_buddy_enabled';
+  var KEY_LS      = 'tsi_mistral_key';
+  var MODEL_LS    = 'tsi_mistral_model';
+  var ENABLE_LS   = 'tsi_buddy_enabled';
+  var PROVIDER_LS = 'tsi_buddy_provider';
+  var VERB_LS     = 'tsi_buddy_verbosity';   // 'brief' | 'standard' | 'detailed'
+
+  /* TSI_BUDDY_FLAVOUR. The generators that embed this file differ in three
+     small ways, and a page upgraded in place keeps the one it was built with.
+     scripts/upgrade_buddy.py rewrites this ONE line; nothing else in the file
+     varies between copies.
+       place      'top'     the chat panel hangs under the button (lecture
+                            builder, CourseForge, MSESR)
+                  'bottom'  it sits in the bottom-right corner (the wizards)
+       lengthBar  the reply-length selector and the session token count (the
+                  wizard's full buddy)
+       lecturer   the lecturer's own temperature and Mistral model, passed to
+                  mount(), are used (the wizards). Otherwise 0.4 and the
+                  default model, as this file always did. */
+  var FLAVOUR = { place: 'bottom', lengthBar: false, lecturer: false };
+  var VERSION = '2026-10-10';
+
+  /* TSI_BUDDY_PROVIDERS. Mistral stopped issuing free API keys on
+     21 September 2026, so a student who arrives today cannot get one; Groq
+     still gives them out. A Mistral key that is already saved keeps working:
+     its storage names are unchanged, and Mistral stays the default wherever
+     such a key exists. A Groq key is stored under its own name and is never
+     written into the Mistral slot, because pages published before this change
+     read that slot and would send it to Mistral.
+
+     What the free Groq tier allows was read from the API on 10 October 2026,
+     not from the documentation:
+       - the browser may call it directly (the preflight answers
+         access-control-allow-origin: *), so the buddy stays zero-backend;
+       - a free key lists gpt-oss-120b, gpt-oss-20b and qwen3.8-27b. The
+         llama models answer 404 on it;
+       - 8000 tokens a minute and 1000 requests a day, per model;
+       - a prompt over the minute cap is refused outright (413) and no retry
+         will ever admit it. Real lecture prompts measured 1000 to 7700
+         tokens, so the richest pages fit only after trimming: fitRequest();
+       - all three models answered in the student's own language 5 times out
+         of 5 (English, Spanish, Latvian, Russian, French) and declined a
+         question the notes did not cover.
+       - qwen alone carries a second limit, 1000 OUTPUT tokens a minute, and
+         it is applied to what a request MIGHT produce: a call that allows
+         more than 1000 is refused before it runs ("Request too large ... on
+         output tokens per minute (OTPM): Limit 1000"), sometimes, depending
+         on what the account produced recently. So max_tokens is capped per
+         model (`outputCap`); a tutor's reply is far shorter than that.
+     `models` is an order of preference, not a single name: when one is busy,
+     gone, or has spent its day, the buddy moves to the next instead of
+     failing. */
+  var PROVIDERS = {
+    groq: {
+      label: 'Groq',
+      url: 'https://api.groq.com/openai/v1/chat/completions',
+      keyLS: 'tsi_groq_key', modelLS: 'tsi_groq_model',
+      keyPrefix: 'gsk_',
+      keyPage: 'https://console.groq.com/keys', keyPageLabel: 'console.groq.com/keys',
+      placeholder: 'paste your Groq key (starts with "gsk_")',
+      models: ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'],
+      outputCap: { 'qwen/qwen3.8-27b': 1000 },
+      minuteCap: 8000
+    },
+    mistral: {
+      label: 'Mistral',
+      url: 'https://api.mistral.ai/v1/chat/completions',
+      keyLS: KEY_LS, modelLS: MODEL_LS,
+      keyPrefix: '',
+      keyPage: 'https://console.mistral.ai/api-keys/', keyPageLabel: 'console.mistral.ai',
+      placeholder: 'paste your Mistral key',
+      models: ['ministral-8b-2512', 'ministral-3b-2512', 'codestral-2508'],
+      minuteCap: 0
+    }
+  };
+
+
+  /* TSI_BUDDY_DEAD_MODELS: models this organisation has no completion quota for. A student
+     who used the buddy before the fix has one of them saved, and a saved
+     value beats a new default, so rewrite it on load. */
+  var TSI_BUDDY_DEAD_MODELS = ['mistral-small-latest', 'mistral-small-2603', 'mistral-small-2503', 'mistral-medium-latest', 'mistral-medium-2505', 'mistral-large-latest', 'mistral-large-2512', 'mistral-large-2411', 'mistral-tiny', 'open-mistral-7b'];
+  function tsiLiveModel(m) {
+    return (!m || TSI_BUDDY_DEAD_MODELS.indexOf(m) !== -1) ? 'ministral-8b-2512' : m;
+  }
 
   function lsGet(k, fb) { try { var v = localStorage.getItem(k); return v == null ? fb : v; } catch (e) { return fb; } }
   function lsSet(k, v)  { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  /* A saved model beats a new default, on either service. Mistral keeps its
+     dead-model guard. A Groq name that is not on the list above was saved by
+     an older page or has been retired, so it falls back to the first choice. */
+  function liveModel(providerId, saved) {
+    var p = PROVIDERS[providerId];
+    if (providerId === 'mistral') return tsiLiveModel(saved);
+    return (saved && p.models.indexOf(saved) !== -1) ? saved : p.models[0];
+  }
+
+  /* Which service a student starts on. Their own choice wins. Without one, a
+     Mistral key that is already saved keeps them where they were, so nothing
+     changes for anyone the buddy already worked for. Everyone else starts on
+     the service that still hands out keys. */
+  function pickProvider(preferred) {
+    var saved = lsGet(PROVIDER_LS, '');
+    if (PROVIDERS[saved]) return saved;
+    if (lsGet(PROVIDERS.mistral.keyLS, '')) return 'mistral';
+    if (lsGet(PROVIDERS.groq.keyLS, '')) return 'groq';
+    return PROVIDERS[preferred] ? preferred : 'groq';
+  }
+
+  /* The key says which service it belongs to: Groq keys start with gsk_,
+     Mistral keys carry no prefix. Used to move a pasted key to the right
+     service instead of sending it to the wrong one and reporting a 401. */
+  function providerOfKey(key) {
+    var k = String(key || '').trim();
+    return k.indexOf(PROVIDERS.groq.keyPrefix) === 0 ? 'groq' : '';
+  }
 
   /* ---------- Styles (injected once) ---------- */
   var STYLE = `
@@ -1738,9 +1854,9 @@ for (const [id, Comp] of mounts) {
 .tsi-buddy-modal small { color: #64748b; }
 
 .tsi-buddy-chat {
-  position: fixed; right: 14px; bottom: 14px; z-index: 9000;
+  position: fixed; right: 14px; top: 56px; z-index: 9000;
   width: 380px; max-width: calc(100vw - 28px);
-  height: 540px; max-height: calc(100vh - 80px);
+  height: 540px; max-height: calc(100vh - 72px);
   background: white; border: 1px solid #cbd5e1; border-radius: 12px;
   box-shadow: 0 12px 40px rgba(15,23,42,0.25);
   display: flex; flex-direction: column;
@@ -1805,6 +1921,14 @@ for (const [id, Comp] of mounts) {
   background: #fee2e2; color: #7f1d1d; border: 1px solid #fecaca;
   padding: 8px 10px; border-radius: 6px; margin: 8px 14px; font-size: 0.85em;
 }
+.tsi-buddy-note {
+  background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe;
+  padding: 8px 10px; border-radius: 6px; margin: 8px 14px 0; font-size: 0.82em;
+}
+.tsi-buddy-note[hidden] { display: none; }
+.tsi-buddy-modal .tsi-buddy-help { margin: 12px 0 0; }
+.tsi-buddy-modal .tsi-buddy-hint { color: #b45309; font-size: 0.85em; margin: 6px 0 0; }
+.tsi-buddy-modal .tsi-buddy-hint[hidden] { display: none; }
 .tsi-buddy-chat-foot {
   border-top: 1px solid #e2e8f0; padding: 10px 12px;
   display: flex; gap: 8px; align-items: flex-end;
@@ -1832,16 +1956,55 @@ for (const [id, Comp] of mounts) {
   background: white; color: #1565c0; cursor: pointer;
 }
 .tsi-buddy-startbar button:hover { background: #e3f2fd; }
+.tsi-buddy-lengthbar {
+  display: flex; gap: 6px; align-items: center;
+  padding: 6px 14px; border-bottom: 1px solid #e2e8f0;
+  background: #f1f5f9; font-size: 0.74em; color: #64748b;
+}
+.tsi-buddy-lengthbar .tsi-buddy-lb-label {
+  font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  margin-right: 6px;
+}
+.tsi-buddy-lengthbar button {
+  background: white; color: #475569; border: 1px solid #cbd5e1;
+  border-radius: 999px; padding: 3px 10px; cursor: pointer;
+  font: 600 11px/1.2 'Inter', system-ui, sans-serif;
+}
+.tsi-buddy-lengthbar button:hover { background: #e2e8f0; color: #1e293b; }
+.tsi-buddy-lengthbar button.on { background: #1565c0; color: white; border-color: #1565c0; }
+.tsi-buddy-lengthbar .tsi-buddy-tokens {
+  margin-left: auto; cursor: pointer;
+  font: 600 11px/1.2 ui-monospace, Menlo, monospace;
+  color: #475569; background: white;
+  border: 1px solid #cbd5e1; border-radius: 999px;
+  padding: 3px 9px; white-space: nowrap;
+}
+.tsi-buddy-lengthbar .tsi-buddy-tokens:hover { background: #e2e8f0; color: #1e293b; }
+.tsi-buddy-lengthbar .tsi-buddy-tokens .tsi-buddy-tok-dot { color: #16a34a; }
 @media (max-width: 480px) {
-  .tsi-buddy-chat { width: calc(100vw - 16px); right: 8px; bottom: 8px; height: calc(100vh - 90px); }
+  .tsi-buddy-chat { width: calc(100vw - 16px); right: 8px; top: 52px; bottom: 8px; height: auto; max-height: none; }
 }
 `;
+
+  /* FLAVOUR.place === 'bottom': the wizards dock the panel in the corner. */
+  var STYLE_BOTTOM = `
+.tsi-buddy-chat { top: auto; bottom: 14px; max-height: calc(100vh - 80px); }
+@media (max-width: 480px) {
+  .tsi-buddy-chat { top: auto; bottom: 8px; height: calc(100vh - 90px); }
+}
+`;
+
+  function fmtTok(n) {
+    if (n >= 100000) return Math.round(n / 1000) + 'k';
+    if (n >= 1000)   return (n / 1000).toFixed(1) + 'k';
+    return String(n);
+  }
 
   function injectStyles() {
     if (document.getElementById('tsi-buddy-styles')) return;
     var s = document.createElement('style');
     s.id = 'tsi-buddy-styles';
-    s.textContent = STYLE;
+    s.textContent = STYLE + (FLAVOUR.place === 'bottom' ? STYLE_BOTTOM : '');
     document.head.appendChild(s);
   }
 
@@ -1862,6 +2025,36 @@ for (const [id, Comp] of mounts) {
       document.head.appendChild(s);
     });
     return window.__tsiMarkedLoading;
+  }
+
+  /* ---------- KaTeX (for math in replies) ----------
+     Lazy-load KaTeX + CSS when the host page doesn't already have it, so
+     $...$ / $$...$$ in replies typeset instead of showing raw. */
+  var KATEX_OPTS = {
+    delimiters: [
+      { left: '$$', right: '$$', display: true },
+      { left: '$',  right: '$',  display: false }
+    ],
+    throwOnError: false
+  };
+  function loadKatex() {
+    if (window.katex && window.katex.renderToString) return Promise.resolve(window.katex);
+    if (window.__tsiKatexLoading) return window.__tsiKatexLoading;
+    window.__tsiKatexLoading = new Promise(function (resolve) {
+      if (!document.querySelector('link[data-tsi-katex]')) {
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
+        link.setAttribute('data-tsi-katex', '1');
+        document.head.appendChild(link);
+      }
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';
+      s.onload  = function () { resolve(window.katex || null); };
+      s.onerror = function () { resolve(null); };
+      document.head.appendChild(s);
+    });
+    return window.__tsiKatexLoading;
   }
 
   // Light DOM sanitiser: walks the parsed tree and removes any tags / attrs
@@ -1905,10 +2098,42 @@ for (const [id, Comp] of mounts) {
     var div = document.createElement('div');
     div.className = 'tsi-buddy-text';
     var raw = text == null ? '' : String(text);
+    /* The gpt-oss models write maths as \( … \) and \[ … \] even when the
+       prompt asks for dollars. Bring both to the one form typeset below. */
+    if (isAssistant) {
+      raw = raw.replace(/\\\[([\s\S]+?)\\\]/g, function (_m, body) { return '$$' + body + '$$'; })
+               .replace(/\\\(([\s\S]+?)\\\)/g, function (_m, body) { return '$' + body.trim() + '$'; });
+    }
     if (isAssistant && window.marked && window.marked.parse) {
       try {
-        var html = window.marked.parse(raw, { breaks: true, gfm: true, mangle: false, headerIds: false });
-        div.innerHTML = sanitizeHTML(html);
+        /* Protect math from markdown (it mangles _ * \ inside $…$), then
+           restore + typeset with KaTeX. */
+        var math = [];
+        var protectedSrc = raw
+          .replace(/\$\$([\s\S]+?)\$\$/g, function (_m, body) {
+            math.push({ display: true, tex: body }); return ' @@TSIMATH' + (math.length - 1) + '@@ ';
+          })
+          .replace(/\$([^\$\n]+?)\$/g, function (_m, body) {
+            math.push({ display: false, tex: body }); return '@@TSIMATH' + (math.length - 1) + '@@';
+          });
+        var html = sanitizeHTML(window.marked.parse(protectedSrc, { breaks: true, gfm: true, mangle: false, headerIds: false }));
+        var katexReady = window.katex && window.katex.renderToString;
+        html = html.replace(/@@TSIMATH(\d+)@@/g, function (_m, i) {
+          var item = math[Number(i)];
+          if (!item) return '';
+          if (katexReady) {
+            try { return window.katex.renderToString(item.tex, { displayMode: item.display, throwOnError: false }); }
+            catch (e) {}
+          }
+          var d = item.display ? '$$' : '$';
+          return d + escapeHTML(item.tex) + d;
+        });
+        div.innerHTML = html;
+        if (math.length && !katexReady) {
+          loadKatex().then(function (k) {
+            if (k && window.renderMathInElement) { try { window.renderMathInElement(div, KATEX_OPTS); } catch (e) {} }
+          });
+        }
         return div;
       } catch (e) { /* fall through to plain text */ }
     }
@@ -1917,39 +2142,316 @@ for (const [id, Comp] of mounts) {
     return div;
   }
 
-  /* ---------- Streaming Mistral call ---------- */
-  function callMistralChat(apiKey, model, systemPrompt, messages, onDelta) {
-    return fetch('https://api.mistral.ai/v1/chat/completions', {
+  /* ---------- Fitting a request under a per-minute cap ----------
+     Only a service that declares a minuteCap is fitted; Mistral requests go
+     out exactly as before.
+
+     Groq sets room aside for the reply BEFORE it runs a request, and refuses
+     the request if the prompt plus that room is over the minute cap. How
+     much it sets aside moves: 190, 670 and 2490 tokens were all measured on
+     the same model within the hour, the last being the whole max_tokens of
+     that call. So the only sum that is always admitted is prompt +
+     max_tokens under the cap. On such a service a reply is allowed
+     CAPPED_REPLY_TOKENS, ample for a tutor, and the prompt is cut to what is
+     left: old turns go first, then the notes, and the notes are cut by
+     relevance to the question rather than from the end. */
+  var CAPPED_REPLY_TOKENS = 1000;
+  var FIT_MARGIN = 150;
+  var FRAMING_TOKENS = 80;      // what the service wraps around the messages
+  var MAX_WAIT_MS = 90000;
+  var NOTES_OPEN  = '── LECTURE NOTES ──';
+  var NOTES_CLOSE = '── END LECTURE NOTES ──';
+  var PARTIAL_NOTES_RULE = '\nIMPORTANT: only part of the notes is printed below, because of a size limit. A gap is marked […]. If the answer is not in the part you can see, say that it may be in a part of the notes you cannot see right now, and ask the student to name the section or to rephrase. Do not say the lecture does not cover it.\n\n';
+
+  /* A page cannot run a tokenizer, so it counts characters. Real buddy
+     prompts measured 3.1 to 4.5 characters a token on Groq, median 3.8; other
+     scripts cost more per character. When this guess is wrong the service
+     says so in its refusal and runChat() learns the true ratio from it. */
+  function estimateTokens(text) {
+    var s = String(text == null ? '' : text), wide = 0;
+    for (var i = 0; i < s.length; i++) if (s.charCodeAt(i) > 127) wide++;
+    return Math.ceil((s.length - wide) / 3.6 + wide / 2);
+  }
+
+  // Split on a separator but leave it glued to the piece before it, so the
+  // pieces always join back into exactly the original text.
+  function splitKeeping(text, re) {
+    var out = [], last = 0, m;
+    re.lastIndex = 0;
+    while ((m = re.exec(text))) {
+      if (m[0].length === 0) { re.lastIndex++; continue; }
+      var end = m.index + m[0].length;
+      out.push(text.slice(last, end));
+      last = end;
+    }
+    if (last < text.length) out.push(text.slice(last));
+    return out;
+  }
+
+  // Notes in pieces small enough to choose between: paragraphs, then lines,
+  // then sentences, with neighbours rejoined so no piece is a fragment.
+  function chunkNotes(text) {
+    var BIG = 1400, SMALL = 600, fine = [], out = [], cur = '';
+    splitKeeping(text, /\n[ \t]*\n+/g).forEach(function (p) {
+      if (p.length <= BIG) { fine.push(p); return; }
+      splitKeeping(p, /\n/g).forEach(function (q) {
+        if (q.length <= BIG) { fine.push(q); return; }
+        splitKeeping(q, /[.!?]\s+/g).forEach(function (r) { fine.push(r); });
+      });
+    });
+    fine.forEach(function (piece) {
+      if (cur && cur.length + piece.length > BIG) { out.push(cur); cur = ''; }
+      cur += piece;
+      if (cur.length >= SMALL) { out.push(cur); cur = ''; }
+    });
+    if (cur) out.push(cur);
+    return out;
+  }
+
+  // The distinct words of a question, in any script, four letters or longer.
+  function queryWords(text) {
+    var seen = {}, out = [];
+    (String(text || '').toLowerCase().match(/[^\s\d!-\/:-@\[-`{-~ -⁯]{4,}/g) || []).forEach(function (w) {
+      if (!seen[w]) { seen[w] = 1; out.push(w); }
+    });
+    return out;
+  }
+
+  /* Cut the notes down to `room` tokens. The role and the rules are never
+     touched. Pieces that share words with the question are kept first, the
+     rest fill the space in reading order, and whatever is kept goes back in
+     its original order. A question in another language than the notes shares
+     no words with them, and then this is simply the opening of the notes. */
+  function shrinkSystem(systemPrompt, room, query, scale) {
+    var s = String(systemPrompt), head, notes, tail;
+    var a = s.indexOf(NOTES_OPEN), b = s.lastIndexOf(NOTES_CLOSE);
+    if (a !== -1 && b > a) {
+      head = s.slice(0, a) + PARTIAL_NOTES_RULE + NOTES_OPEN;
+      notes = s.slice(a + NOTES_OPEN.length, b);
+      tail = s.slice(b);
+    } else {
+      // No markers. Every prompt the buddy has been given opens with the role
+      // and the rules, so protect the opening and trim what follows it.
+      var cut = Math.min(2500, Math.floor(s.length * 0.4));
+      var nl = s.indexOf('\n', cut);
+      if (nl !== -1 && nl - cut < 400) cut = nl + 1;
+      head = s.slice(0, cut) + '\n' + PARTIAL_NOTES_RULE;
+      notes = s.slice(cut);
+      tail = '';
+    }
+    function tok(t) { return Math.ceil(estimateTokens(t) * scale); }
+    var left = room - tok(head) - tok(tail) - 20;
+    var words = queryWords(query);
+    var pieces = chunkNotes(notes).map(function (c, i) {
+      var low = c.toLowerCase(), hits = 0;
+      words.forEach(function (w) { if (low.indexOf(w) !== -1) hits++; });
+      return { i: i, text: c, tok: tok(c) + 2, hits: hits };
+    });
+    var keep = {};
+    pieces.slice().sort(function (x, y) { return (y.hits - x.hits) || (x.i - y.i); }).forEach(function (c) {
+      if (c.tok <= left) { keep[c.i] = true; left -= c.tok; }
+    });
+    var body = '', gap = false;
+    pieces.forEach(function (c) {
+      if (keep[c.i]) { body += c.text; gap = false; }
+      else if (!gap) { body += '\n[…]\n'; gap = true; }
+    });
+    return head + body + tail;
+  }
+
+  /* Returns what to send: { system, messages, dropped, partial, estimate }.
+     `messages` ends with the question being asked, which always survives.
+     So does the exchange just before it, up to RECENT_SHARE of the budget:
+     without it "explain that again" has no "that", and on the largest pages
+     every earlier turn would otherwise be dropped to make room for notes. */
+  var RECENT_SHARE = 0.15;
+
+  function fitRequest(systemPrompt, messages, cap, scale) {
+    var out = { system: systemPrompt, messages: messages.slice(), dropped: 0, partial: false, estimate: 0 };
+    if (!cap) return out;
+    scale = scale || 1;
+    var budget = cap - CAPPED_REPLY_TOKENS - FIT_MARGIN;
+    function tok(t) { return Math.ceil(estimateTokens(t) * scale) + 6; }
+    function total() {
+      var n = tok(out.system) + FRAMING_TOKENS;
+      out.messages.forEach(function (m) { n += tok(m.content); });
+      return n;
+    }
+    if (total() <= budget) { out.estimate = total(); return out; }
+
+    // A question pasted at essay length must not push the notes out entirely.
+    var all = out.messages, last = all[all.length - 1];
+    var askMax = Math.floor(budget * 0.4);
+    if (last && tok(last.content) > askMax) {
+      var keepChars = Math.floor(last.content.length * askMax / tok(last.content));
+      last = { role: last.role, content: last.content.slice(0, keepChars) + '\n[… message shortened to fit …]' };
+      all[all.length - 1] = last;
+    }
+
+    // The protected tail: the question and the one exchange before it. The
+    // earlier question is short and goes in first; a long reply keeps its
+    // opening, which is where a reply says what it is about.
+    function clip(m, maxTok) {
+      var t = tok(m.content);
+      if (t <= maxTok) return m;
+      var chars = Math.max(0, Math.floor(m.content.length * (maxTok - 12) / t));
+      return { role: m.role, content: m.content.slice(0, chars) + ' […]' };
+    }
+    var floorTok = Math.floor(budget * RECENT_SHARE), tail = [last];
+    if (all.length >= 2) {
+      var before = all.length >= 3 ? clip(all[all.length - 3], Math.floor(floorTok * 0.3)) : null;
+      var reply = clip(all[all.length - 2], floorTok - (before ? tok(before.content) : 0));
+      tail = (before ? [before] : []).concat([reply, last]);
+    }
+    var covered = tail.length;
+
+    // Old turns go first, because the notes are what keeps the buddy honest.
+    while (total() > budget && out.messages.length > covered) { out.messages.shift(); out.dropped++; }
+    while (out.messages.length > covered && out.messages[0].role !== 'user') { out.messages.shift(); out.dropped++; }
+
+    // Still over: the notes alone are larger than one request may be.
+    if (total() > budget) {
+      out.messages = tail;
+      var asked = messages.filter(function (m) { return m.role === 'user'; }).slice(-2)
+        .map(function (m) { return m.content; }).join(' ');
+      var room = budget - FRAMING_TOKENS - 6;
+      tail.forEach(function (m) { room -= tok(m.content); });
+      out.system = shrinkSystem(systemPrompt, room, asked, scale);
+      out.partial = true;
+    }
+    out.estimate = total();
+    return out;
+  }
+
+  /* ---------- Reading a refusal ---------- */
+  // "Please try again in 26.2275s" / "7m12s" / "644ms" -> milliseconds.
+  function parseWaitMs(text) {
+    var m = /try again in\s+((?:\d+(?:\.\d+)?(?:ms|h|m|s))+)/i.exec(text || '');
+    if (!m) return 0;
+    var total = 0, re = /(\d+(?:\.\d+)?)(ms|h|m|s)/g, p;
+    while ((p = re.exec(m[1]))) {
+      var v = parseFloat(p[1]);
+      total += p[2] === 'ms' ? v : p[2] === 's' ? v * 1000 : p[2] === 'm' ? v * 60000 : v * 3600000;
+    }
+    return Math.ceil(total);
+  }
+
+  /* What a failed call means, so runChat() can do something about it. The
+     browser cannot see the rate-limit headers of either service (neither
+     exposes them to a cross-origin page), so the wait is read from the text.
+       key        the key was refused: only the student can fix that
+       too_large  over the minute cap in one request: trim, never retry as is
+       wait       over the minute cap for now: wait, then the same request
+       day        the day's allowance is spent: another model, or tomorrow
+       model      the model is gone or not in the plan: another model */
+  function readFailure(providerId, status, bodyText) {
+    var j = null, msg = '', code = '';
+    try { j = JSON.parse(bodyText); } catch (e) {}
+    if (j) {
+      var e1 = (j.error && typeof j.error === 'object') ? j.error : j;
+      msg = e1.message || (typeof j.error === 'string' ? j.error : '') || j.detail || '';
+      if (typeof msg !== 'string') msg = JSON.stringify(msg);
+      code = String(e1.code || '') + ' ' + String(e1.type || '');
+    } else {
+      msg = String(bodyText || '').slice(0, 300);
+    }
+    var f = { kind: 'other', status: status, raw: msg, waitMs: 0, requested: 0, limit: 0 };
+    var req = /Requested (\d+)/.exec(msg), lim = /Limit (\d+)/.exec(msg);
+    if (req) f.requested = Number(req[1]);
+    if (lim) f.limit = Number(lim[1]);
+    if (status === 401) f.kind = 'key';
+    else if (/\(OTPM\)|output tokens per minute/i.test(msg)) {
+      // The output allowance of this model, not the size of the prompt:
+      // trimming would change nothing. Another model, or a minute's wait.
+      f.kind = 'wait';
+      f.waitMs = parseWaitMs(msg) || 60000;
+    }
+    else if (status === 413 || /request too large/i.test(msg)) f.kind = 'too_large';
+    else if (status === 404 || /model_not_found|model_decommissioned/.test(code)) f.kind = 'model';
+    else if (status === 403) f.kind = /model|tier/i.test(msg) ? 'model' : 'key';
+    else if (status === 429) {
+      f.waitMs = parseWaitMs(msg);
+      f.kind = (/per day|\(RPD\)|\(TPD\)/i.test(msg) || f.waitMs > MAX_WAIT_MS) ? 'day' : 'wait';
+    }
+    else if (status >= 500) f.kind = 'server';
+    return f;
+  }
+
+  // The sentence a student reads. The raw reply goes to the console.
+  function describeFailure(providerId, f) {
+    var name = PROVIDERS[providerId].label;
+    switch (f.kind) {
+      case 'key':       return name + ' did not accept this key. Open the settings (⚙) and paste a valid ' + name + ' key.';
+      case 'too_large': return 'This question and the page notes together are larger than ' + name + ' accepts in one request. Try a shorter question.';
+      case 'wait':      return name + ' is limiting requests right now. Wait a minute and ask again.';
+      case 'day':       return 'Today’s free allowance on ' + name + ' is used up for this key. It refills within 24 hours.';
+      case 'model':     return name + ' does not offer the model this page asks for. Open the settings (⚙) and choose another model.';
+      case 'server':    return name + ' had a problem answering (' + f.status + '). Try again in a moment.';
+      case 'network':   return 'Could not reach ' + name + '. Check the connection. Some networks block it.';
+      case 'stopped':   return '';
+      default:          return name + ' ' + (f.status || '') + ': ' + (f.raw || 'request failed');
+    }
+  }
+
+  function failure(kind, extra) {
+    var f = { kind: kind, status: 0, raw: '', waitMs: 0, requested: 0, limit: 0 };
+    if (extra) for (var k in extra) f[k] = extra[k];
+    var e = new Error(kind);
+    e.failure = f;
+    return e;
+  }
+
+  /* ---------- One streamed call ---------- */
+  // Resolves { text, promptTokens, usage }. Rejects with an Error carrying .failure.
+  function callChat(providerId, apiKey, model, systemPrompt, messages, onDelta, signal, temperature) {
+    var p = PROVIDERS[providerId];
+    var reply = p.minuteCap ? CAPPED_REPLY_TOKENS : 1500;
+    var outputCap = (p.outputCap || {})[model];
+    var body = {
+      model: model,
+      temperature: (typeof temperature === 'number') ? temperature : 0.4,
+      max_tokens: outputCap ? Math.min(reply, outputCap) : reply,
+      stream: true,
+      messages: [{ role: 'system', content: systemPrompt }].concat(messages)
+    };
+    /* gpt-oss thinks before it answers, and the thinking is billed as output.
+       A tutor's short reply needs little of it: `low` measured 6 reasoning
+       tokens against 51. Other models do not take these fields. */
+    if (String(model).indexOf('openai/gpt-oss') === 0) {
+      body.reasoning_effort = 'low';
+      body.include_reasoning = false;
+    }
+    return fetch(PROVIDERS[providerId].url, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: model || 'mistral-small-latest',
-        temperature: 0.4,
-        max_tokens: 1500,
-        stream: true,
-        messages: [{ role: 'system', content: systemPrompt }].concat(messages)
-      })
+      body: JSON.stringify(body),
+      signal: signal
     }).then(function (r) {
       if (!r.ok) {
         return r.text().then(function (t) {
-          throw new Error('Mistral ' + r.status + ': ' + (t || 'request failed'));
+          var e = new Error(PROVIDERS[providerId].label + ' ' + r.status + ': ' + (t || 'request failed'));
+          e.failure = readFailure(providerId, r.status, t);
+          throw e;
         });
       }
       if (!r.body || !r.body.getReader) {
         return r.json().then(function (data) {
-          if (!data.choices || !data.choices[0]) throw new Error('Mistral returned no choices.');
-          var full = (data.choices[0].message.content || '').trim();
-          if (onDelta) onDelta(full);
-          return full;
+          if (!data.choices || !data.choices[0]) throw failure('other', { raw: 'no choices returned' });
+          var whole = (data.choices[0].message.content || '').trim();
+          if (onDelta) onDelta(whole);
+          return { text: whole, promptTokens: (data.usage && data.usage.prompt_tokens) || 0, usage: data.usage || null };
         });
       }
       var reader = r.body.getReader();
       var decoder = new TextDecoder();
       var buf = '';
       var full = '';
+      var promptTokens = 0;
+      var usage = null;
+      function done() { return { text: full.trim(), promptTokens: promptTokens, usage: usage }; }
       function pump() {
         return reader.read().then(function (res) {
-          if (res.done) return full.trim();
+          if (res.done) return done();
           buf += decoder.decode(res.value, { stream: true });
           var lines = buf.split('\n');
           buf = lines.pop();
@@ -1957,9 +2459,10 @@ for (const [id, Comp] of mounts) {
             var ln = lines[i];
             if (ln.indexOf('data: ') !== 0) continue;
             var s = ln.substring(6).trim();
-            if (s === '[DONE]') return full.trim();
+            if (s === '[DONE]') return done();
             try {
               var d = JSON.parse(s);
+              if (d.usage && d.usage.prompt_tokens) { promptTokens = d.usage.prompt_tokens; usage = d.usage; }
               if (d.choices && d.choices[0] && d.choices[0].delta && d.choices[0].delta.content) {
                 full += d.choices[0].delta.content;
                 if (onDelta) onDelta(full);
@@ -1970,7 +2473,102 @@ for (const [id, Comp] of mounts) {
         });
       }
       return pump();
+    }, function (netErr) {
+      if (netErr && netErr.name === 'AbortError') throw failure('stopped');
+      throw failure('network', { raw: String((netErr && netErr.message) || netErr) });
     });
+  }
+
+  /* ---------- A call with the service's limits handled ----------
+     job:   { providerId, key, model, systemPrompt, messages, temperature, cal, signal, isCurrent }
+     hooks: { onDelta(text), onWait(secondsLeft), onPartial(), onModel(model, why), onUsage(usage) }
+     `cal.scale` is the learned ratio between the character count and the
+     real token count; it outlives the call so the next question fits first
+     time. Models that have spent their day are remembered for the session. */
+  var spentModels = {};
+
+  function runChat(job, hooks) {
+    var p = PROVIDERS[job.providerId];
+    var model = job.model, refits = 0, waits = 0, tried = {}, busy = {};
+    var maxWaits = p.minuteCap ? 3 : 1;
+
+    function nextModel() {
+      tried[model] = true;
+      for (var i = 0; i < p.models.length; i++) {
+        var m = p.models[i];
+        if (!tried[m] && !spentModels[job.providerId + '|' + m]) return m;
+      }
+      return '';
+    }
+    function pause(ms) {
+      return new Promise(function (resolve, reject) {
+        var until = Date.now() + ms;
+        (function tick() {
+          if (!job.isCurrent()) { reject(failure('stopped')); return; }
+          var left = until - Date.now();
+          if (left <= 0) { resolve(); return; }
+          if (hooks.onWait) hooks.onWait(Math.ceil(left / 1000));
+          setTimeout(tick, Math.min(1000, left));
+        })();
+      });
+    }
+    function attempt() {
+      var fit = fitRequest(job.systemPrompt, job.messages, p.minuteCap, job.cal.scale);
+      if (fit.partial && hooks.onPartial) hooks.onPartial();
+      return callChat(job.providerId, job.key, model, fit.system, fit.messages, hooks.onDelta, job.signal, job.temperature).then(function (res) {
+        if (res.usage && hooks.onUsage) hooks.onUsage(res.usage);
+        if (res.promptTokens && fit.estimate) {
+          // The ratio is learned from this request, but the next one may carry
+          // denser text (a table, formulae), so keep a little in hand.
+          job.cal.scale = Math.min(2.5, Math.max(0.6, job.cal.scale * res.promptTokens / fit.estimate * 1.04));
+        }
+        return res.text;
+      }, function (err) {
+        var f = err.failure || { kind: 'other', raw: String((err && err.message) || err) };
+        if (f.kind === 'stopped' || !job.isCurrent()) throw failure('stopped');
+        try { console.warn('TSI Buddy:', PROVIDERS[job.providerId].label, f.status, f.kind, f.raw); } catch (e) {}
+        if (f.kind === 'too_large' && p.minuteCap && refits < 2) {
+          // The refusal states the count it measured. Believe it over the guess.
+          refits++;
+          // Its count is the prompt plus the room it kept for the reply, which
+          // is at most the allowance, so the prompt weighed at least the rest.
+          job.cal.scale = Math.min(4, job.cal.scale * Math.max(1.08,
+            (f.requested && fit.estimate) ? (f.requested - CAPPED_REPLY_TOKENS) / fit.estimate : 1.25));
+          return attempt();
+        }
+        if (f.kind === 'wait') {
+          busy[model] = f.waitMs || 4000;
+          // The minute allowance is counted per model, so a second model can
+          // answer now while the first one refills. Pause only when every
+          // model is busy, and then only until the first of them is free.
+          if (p.minuteCap) {
+            var other = nextModel();
+            if (other) { model = other; return attempt(); }
+          }
+          if (waits < maxWaits) {
+            waits++;
+            var soonest = model;
+            for (var b in busy) if (busy[b] < busy[soonest]) soonest = b;
+            var ms = busy[soonest];
+            model = soonest; tried = {}; busy = {};
+            return pause(ms + 400).then(attempt);
+          }
+        }
+        if (f.kind === 'day' || f.kind === 'model' || f.kind === 'wait') {
+          if (f.kind !== 'wait') spentModels[job.providerId + '|' + model] = true;
+          var m = nextModel();
+          if (m) {
+            model = m; waits = 0; refits = 0;
+            if (hooks.onModel) hooks.onModel(m, f.kind);
+            return attempt();
+          }
+        }
+        var e = new Error(describeFailure(job.providerId, f));
+        e.failure = f;
+        throw e;
+      });
+    }
+    return attempt();
   }
 
   /* ---------- DOM helpers ---------- */
@@ -2000,17 +2598,33 @@ for (const [id, Comp] of mounts) {
     injectStyles();
 
     // ---- State (closure-scoped) ----
+    // One key and one model per service, so switching service loses nothing.
     var state = {
-      apiKey:  lsGet(KEY_LS, ''),
-      model:   lsGet(MODEL_LS, 'mistral-small-latest'),
+      provider: pickProvider(opts.provider),
+      keys:   { groq: lsGet(PROVIDERS.groq.keyLS, ''), mistral: lsGet(PROVIDERS.mistral.keyLS, '') },
+      models: {
+        groq:    liveModel('groq', lsGet(PROVIDERS.groq.modelLS, '')),
+        mistral: liveModel('mistral', lsGet(PROVIDERS.mistral.modelLS, (FLAVOUR.lecturer && opts.model) || 'ministral-8b-2512'))
+      },
+      temperature: FLAVOUR.lecturer ? ((typeof opts.temperature === 'number') ? opts.temperature : 0.15) : 0.4,
+      verbosity: lsGet(VERB_LS, 'standard'),
+      tokens:  { prompt: 0, completion: 0, total: 0, calls: 0 },   // this session only
       enabled: lsGet(ENABLE_LS, '') === '1',
       messages: [],     // {role, content}
       pending: '',
       status:  'idle',  // idle | loading | error
       error:   '',
+      note:    '',      // a calm notice above the chat: notes trimmed, model changed
+      waitText: '',     // shown in the thinking bubble while a free-tier pause runs
+      run:     0,       // bumped on every send and reset, so a stale reply is dropped
+      abort:   null,
+      cal:     { scale: 1 },
       open:    false    // chat panel visible
     };
-    if (state.apiKey) state.enabled = true; // having a key implies enabled
+    if (state.verbosity !== 'brief' && state.verbosity !== 'detailed') state.verbosity = 'standard';
+    function key()      { return (state.keys[state.provider] || '').trim(); }
+    function provider() { return PROVIDERS[state.provider]; }
+    if (key()) state.enabled = true; // having a key implies enabled
 
     // ---- Floating button ----
     var btnDot   = el('span', { class: 'tsi-buddy-dot' });
@@ -2020,53 +2634,117 @@ for (const [id, Comp] of mounts) {
       class: 'tsi-buddy-btn',
       title: 'TSI Buddy — your study companion',
       onclick: function () {
-        if (state.apiKey) toggleChat();
+        if (key()) toggleChat();
         else openSettings();
       }
     }, [btnDot, btnLabel, btnState]);
     document.body.appendChild(btn);
 
     // ---- Settings modal ----
+    var providerSelect = el('select', {
+      onchange: function (e) { state.provider = e.target.value; refreshSettings(); }
+    }, [
+      el('option', { value: 'groq' }, 'Groq (free key)'),
+      el('option', { value: 'mistral' }, 'Mistral (a key you already have)')
+    ]);
+    var keyLabel = el('label', null, '');
+    var keyHint  = el('p', { class: 'tsi-buddy-hint', hidden: true }, '');
     var keyInput = el('input', {
       type: 'password', autocomplete: 'off',
-      placeholder: 'paste your Mistral key (starts with "sk-…")',
-      value: state.apiKey,
-      oninput: function (e) { state.apiKey = e.target.value; }
+      oninput: function (e) {
+        var typed = e.target.value;
+        // A reload with a saved key already switches the buddy on. Do it at
+        // once, so pasting a key and pressing Save is all a student has to do.
+        if (typed.trim() && !state.enabled) { state.enabled = true; enableBox.checked = true; }
+        var belongs = providerOfKey(typed);
+        if (belongs && belongs !== state.provider) {
+          // A Groq key pasted while Mistral is selected: move it where it
+          // works, and put back whatever the other service had saved.
+          state.keys[state.provider] = lsGet(provider().keyLS, '');
+          state.provider = belongs;
+          state.keys[belongs] = typed;
+          refreshSettings();
+          return;
+        }
+        state.keys[state.provider] = typed;
+        refreshKeyHint();
+      }
     });
     var modelSelect = el('select', {
-      onchange: function (e) { state.model = e.target.value; }
-    }, ['mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest'].map(function (m) {
-      var o = el('option', { value: m }, m + (m === 'mistral-small-latest' ? ' (recommended)' : ''));
-      if (m === state.model) o.selected = true;
-      return o;
-    }));
+      onchange: function (e) { state.models[state.provider] = e.target.value; }
+    });
+    var helpLine = el('p', { class: 'tsi-buddy-help' });
     var enableBox = el('input', {
       type: 'checkbox',
       onchange: function (e) { state.enabled = !!e.target.checked; }
     });
     enableBox.checked = state.enabled;
+
+    function refreshKeyHint() {
+      var k = key(), p = provider();
+      var wrong = !!(p.keyPrefix && k.length >= 8 && k.indexOf(p.keyPrefix) !== 0);
+      keyHint.textContent = wrong
+        ? (p.label + ' keys start with "' + p.keyPrefix + '". If this is a Mistral key, choose Mistral above.')
+        : '';
+      keyHint.hidden = !wrong;
+    }
+    // Everything in the modal that depends on which service is selected.
+    function refreshSettings() {
+      var p = provider(), chosen = state.models[state.provider];
+      providerSelect.value = state.provider;
+      keyLabel.textContent = p.label + ' API key';
+      keyInput.placeholder = p.placeholder;
+      keyInput.value = state.keys[state.provider] || '';
+      while (modelSelect.firstChild) modelSelect.removeChild(modelSelect.firstChild);
+      // A model saved earlier that is not on the list is still offered, so
+      // opening the settings never changes what the student is using.
+      var names = p.models.indexOf(chosen) === -1 ? [chosen].concat(p.models) : p.models;
+      names.forEach(function (m) {
+        var o = el('option', { value: m }, m + (m === p.models[0] ? ' (recommended)' : ''));
+        if (m === chosen) o.selected = true;
+        modelSelect.appendChild(o);
+      });
+      while (helpLine.firstChild) helpLine.removeChild(helpLine.firstChild);
+      var link = el('a', { href: p.keyPage, target: '_blank', rel: 'noopener noreferrer' }, p.keyPageLabel);
+      if (state.provider === 'groq') {
+        helpLine.appendChild(el('small', null, 'Get a free key at '));
+        helpLine.appendChild(link);
+        helpLine.appendChild(el('small', null, ': sign in, press Create API Key, and paste it here. The key stays in your browser only. The free tier allows about 8,000 tokens a minute, so the buddy may pause for some seconds between questions.'));
+      } else {
+        helpLine.appendChild(el('small', null, 'Mistral stopped giving out free keys on 21 September 2026. A key you already have keeps working (see '));
+        helpLine.appendChild(link);
+        helpLine.appendChild(el('small', null, '). No key? Choose Groq above. The key stays in your browser only.'));
+      }
+      refreshKeyHint();
+    }
+
     var modalCard = el('div', { class: 'tsi-buddy-modal', onclick: function (e) { e.stopPropagation(); } }, [
       el('h3', null, '🤖 TSI Buddy'),
       el('p', { class: 'tsi-buddy-sub' }, opts.contextLabel
         ? ('You are reading: ' + opts.contextLabel + '. The buddy reads the page context and helps you understand worked examples — it does not give you the answer to your homework.')
         : 'A study companion. The buddy helps you understand the worked examples on this page.'),
       el('label', { class: 'tsi-buddy-toggle' }, [enableBox, el('span', null, 'Enable TSI Buddy on this page')]),
-      el('label', null, 'Mistral API key'),
+      el('label', null, 'AI service'),
+      providerSelect,
+      keyLabel,
       keyInput,
+      keyHint,
       el('label', null, 'Model'),
       modelSelect,
-      el('p', null, [el('small', null, 'Get a free key at '), el('a', { href: 'https://console.mistral.ai/api-keys/', target: '_blank' }, 'console.mistral.ai'), el('small', null, '. The key stays in your browser only.')]),
+      helpLine,
       el('div', { class: 'tsi-buddy-actions' }, [
-        el('button', { class: 'tsi-buddy-secondary', onclick: function () { state.apiKey = ''; keyInput.value = ''; } }, 'Clear key'),
+        el('button', { class: 'tsi-buddy-secondary', onclick: function () { state.keys[state.provider] = ''; keyInput.value = ''; refreshKeyHint(); } }, 'Clear key'),
         el('button', { class: 'tsi-buddy-primary',   onclick: function () { saveSettings(); } }, 'Save')
       ])
     ]);
     var modalOverlay = el('div', { class: 'tsi-buddy-overlay', hidden: true, onclick: function () { closeSettings(); } }, [modalCard]);
     document.body.appendChild(modalOverlay);
+    refreshSettings();
 
     // ---- Chat panel ----
     var chatBody = el('div', { class: 'tsi-buddy-chat-body' });
     var chatErr  = el('div', { class: 'tsi-buddy-error', hidden: true });
+    var chatNote = el('div', { class: 'tsi-buddy-note', hidden: true });
     var inputBox = el('textarea', {
       rows: 1, placeholder: 'Ask about this page…',
       onkeydown: function (e) {
@@ -2098,22 +2776,70 @@ for (const [id, Comp] of mounts) {
       ])
     ]);
 
-    var chatPanel = el('div', { class: 'tsi-buddy-chat', hidden: true }, [
-      chatHead, startBar, chatErr, chatBody, chatFoot
-    ]);
+    // ---- Token count and reply length (FLAVOUR.lengthBar) ----
+    // Tokens used in THIS chat session: it starts at zero on every page load,
+    // because a total carried across reloads looks as if the buddy had spent
+    // tokens by itself. Click to reset.
+    var tokenChip = el('span', {
+      class: 'tsi-buddy-tokens',
+      onclick: function () {
+        if (state.tokens.total === 0) return;
+        state.tokens = { prompt: 0, completion: 0, total: 0, calls: 0 };
+        refreshTokens();
+      }
+    });
+    function refreshTokens() {
+      var t = state.tokens;
+      tokenChip.innerHTML = '';
+      tokenChip.appendChild(el('span', { class: 'tsi-buddy-tok-dot' }, '◈ '));
+      tokenChip.appendChild(document.createTextNode(fmtTok(t.total) + ' tok'));
+      tokenChip.title = t.total === 0
+        ? 'Tokens used this session: none yet'
+        : ('Tokens this session: ' + t.total.toLocaleString()
+           + '  (' + t.prompt.toLocaleString() + ' in + '
+           + t.completion.toLocaleString() + ' out over '
+           + t.calls + ' message' + (t.calls === 1 ? '' : 's') + ')'
+           + '  ·  click to reset');
+    }
+    // Lets the student bound how wordy the buddy is. Each mode adds a short
+    // directive to the end of the system prompt before each call.
+    var lengthBar = el('div', { class: 'tsi-buddy-lengthbar' });
+    function refreshLengthBar() {
+      lengthBar.innerHTML = '';
+      lengthBar.appendChild(el('span', { class: 'tsi-buddy-lb-label' }, 'reply length'));
+      ['brief', 'standard', 'detailed'].forEach(function (mode) {
+        lengthBar.appendChild(el('button', {
+          class: state.verbosity === mode ? 'on' : '',
+          title: mode === 'brief'    ? '1–2 sentences, no preamble'
+               : mode === 'detailed' ? '4–8 sentences with reasoning shown'
+                                     : 'default, 2–4 sentences',
+          onclick: function () {
+            state.verbosity = mode;
+            lsSet(VERB_LS, mode);
+            refreshLengthBar();
+          }
+        }, mode));
+      });
+      lengthBar.appendChild(tokenChip);
+    }
+    refreshTokens();
+    refreshLengthBar();
+
+    var chatPanel = el('div', { class: 'tsi-buddy-chat', hidden: true },
+      [chatHead].concat(FLAVOUR.lengthBar ? [lengthBar] : [], [startBar, chatNote, chatErr, chatBody, chatFoot]));
     document.body.appendChild(chatPanel);
 
     // ---- Render ----
     function refreshButton() {
-      if (state.apiKey && state.enabled) { btn.classList.add('tsi-on'); btnState.textContent = 'ON'; }
-      else                                { btn.classList.remove('tsi-on'); btnState.textContent = 'off'; }
+      if (key() && state.enabled) { btn.classList.add('tsi-on'); btnState.textContent = 'ON'; }
+      else                        { btn.classList.remove('tsi-on'); btnState.textContent = 'off'; }
     }
     function autosize(t) {
       t.style.height = 'auto';
       t.style.height = Math.min(140, Math.max(36, t.scrollHeight)) + 'px';
     }
     function canSend() {
-      return !!(state.apiKey && state.enabled && state.pending.trim() && state.status !== 'loading');
+      return !!(key() && state.enabled && state.pending.trim() && state.status !== 'loading');
     }
     function refreshSendBtn() { sendBtn.disabled = !canSend(); }
     function refreshStartBar() {
@@ -2135,7 +2861,7 @@ for (const [id, Comp] of mounts) {
         var thinking = (state.status === 'loading' && i === state.messages.length - 1 && m.role === 'assistant' && !m.content);
         var displayText = m.content || (thinking ? '…' : '');
         var contentDiv = thinking
-          ? (function () { var d = document.createElement('div'); d.className = 'tsi-buddy-text'; d.textContent = '…'; return d; })()
+          ? (function () { var d = document.createElement('div'); d.className = 'tsi-buddy-text'; d.textContent = state.waitText || '…'; return d; })()
           : renderContent(displayText, m.role === 'assistant');
         var bubble = el('div', { class: 'tsi-buddy-bubble tsi-' + m.role }, [
           el('div', { class: 'tsi-buddy-role' }, m.role === 'assistant' ? '🤖 TSI Buddy' : '🧑 You'),
@@ -2145,11 +2871,13 @@ for (const [id, Comp] of mounts) {
         chatBody.appendChild(bubble);
       });
       if (state.status === 'error' && state.error) {
-        chatErr.textContent = 'API error: ' + state.error;
+        chatErr.textContent = state.error;
         chatErr.hidden = false;
       } else {
         chatErr.hidden = true;
       }
+      chatNote.textContent = state.note;
+      chatNote.hidden = !state.note;
       // scroll to bottom
       requestAnimationFrame(function () { chatBody.scrollTop = chatBody.scrollHeight; });
       refreshStartBar();
@@ -2157,20 +2885,31 @@ for (const [id, Comp] of mounts) {
     }
 
     // ---- Behaviour ----
-    function openSettings()  { modalOverlay.hidden = false; setTimeout(function () { keyInput.focus(); }, 50); }
+    function openSettings()  { refreshSettings(); modalOverlay.hidden = false; setTimeout(function () { keyInput.focus(); }, 50); }
     function closeSettings() { modalOverlay.hidden = true; }
     function saveSettings() {
-      lsSet(KEY_LS, state.apiKey || '');
-      lsSet(MODEL_LS, state.model || 'mistral-small-latest');
+      state.keys.groq = (state.keys.groq || '').trim();
+      state.keys.mistral = (state.keys.mistral || '').trim();
+      lsSet(PROVIDER_LS, state.provider);
+      lsSet(PROVIDERS.groq.keyLS, state.keys.groq);
+      lsSet(PROVIDERS.groq.modelLS, state.models.groq || PROVIDERS.groq.models[0]);
+      lsSet(KEY_LS, state.keys.mistral);
+      lsSet(MODEL_LS, state.models.mistral || 'ministral-8b-2512');
       lsSet(ENABLE_LS, state.enabled ? '1' : '');
+      state.status = 'idle'; state.error = '';
       closeSettings();
       refreshButton();
-      if (state.apiKey && state.enabled) openChat();
+      if (key() && state.enabled) openChat();
     }
     function openChat()  { state.open = true; chatPanel.hidden = false; refreshChat(); inputBox.focus(); }
     function closeChat() { state.open = false; chatPanel.hidden = true; }
     function toggleChat(){ state.open ? closeChat() : openChat(); }
-    function resetChat() { state.messages = []; state.pending = ''; state.status = 'idle'; state.error = ''; inputBox.value = ''; refreshChat(); }
+    function stopRun() {
+      state.run++;
+      if (state.abort) { try { state.abort.abort(); } catch (e) {} state.abort = null; }
+      state.waitText = '';
+    }
+    function resetChat() { stopRun(); state.messages = []; state.pending = ''; state.status = 'idle'; state.error = ''; state.note = ''; inputBox.value = ''; refreshChat(); }
     function startWith(line) {
       inputBox.value = line;
       state.pending = line;
@@ -2179,28 +2918,87 @@ for (const [id, Comp] of mounts) {
     }
     function sendUserMessage() {
       var draft = (state.pending || '').trim();
-      if (!draft || !state.apiKey || state.status === 'loading') return;
+      if (!draft || !key() || state.status === 'loading') return;
       var userMsg = { role: 'user', content: draft };
       state.messages.push(userMsg);
       state.messages.push({ role: 'assistant', content: '' });
       state.pending = ''; inputBox.value = ''; autosize(inputBox);
-      state.status = 'loading'; state.error = '';
+      state.status = 'loading'; state.error = ''; state.waitText = '';
       refreshChat();
-      callMistralChat(state.apiKey, state.model, opts.systemPrompt, state.messages.slice(0, -1), function (full) {
-        var last = state.messages[state.messages.length - 1];
-        if (last && last.role === 'assistant') {
-          last.content = full;
+
+      stopRun();
+      var run = state.run, pid = state.provider, p = PROVIDERS[pid];
+      state.abort = (typeof AbortController === 'function') ? new AbortController() : null;
+      function current() { return run === state.run; }
+      // Start on a model that has not already spent its day in this session.
+      var model = state.models[pid];
+      if (spentModels[pid + '|' + model]) {
+        model = p.models.filter(function (m) { return !spentModels[pid + '|' + m]; })[0] || model;
+      }
+      // The reply-length directive sits at the end of the system role, so it
+      // overrides any default tone set in the page's own prompt.
+      var verbDirective = '';
+      if (FLAVOUR.lengthBar) {
+        if      (state.verbosity === 'brief')    verbDirective = '\n\n[Reply length: 1–2 sentences. No preamble or sign-off. Be precise and direct. If the answer is a single number or term, just give it.]';
+        else if (state.verbosity === 'detailed') verbDirective = '\n\n[Reply length: 4–8 sentences. Show your reasoning. Worked steps where useful. It is fine to break into short paragraphs.]';
+      }
+      runChat({
+        providerId: pid, key: key(), model: model,
+        systemPrompt: opts.systemPrompt + verbDirective, messages: state.messages.slice(0, -1),
+        temperature: state.temperature,
+        cal: state.cal, signal: state.abort ? state.abort.signal : undefined, isCurrent: current
+      }, {
+        onUsage: function (usage) {
+          var pin  = usage.prompt_tokens     || 0;
+          var pout = usage.completion_tokens || 0;
+          state.tokens.prompt     += pin;
+          state.tokens.completion += pout;
+          state.tokens.total      += (usage.total_tokens || (pin + pout));
+          state.tokens.calls      += 1;
+          refreshTokens();
+        },
+        onDelta: function (full) {
+          if (!current()) return;
+          var last = state.messages[state.messages.length - 1];
+          if (last && last.role === 'assistant') {
+            state.waitText = '';
+            last.content = full;
+            refreshChat();
+          }
+        },
+        onWait: function (seconds) {
+          if (!current()) return;
+          state.waitText = 'Free-tier pause. ' + p.label + ' allows about ' + p.minuteCap.toLocaleString('en-US') +
+            ' tokens a minute. Continuing in ' + seconds + ' s…';
+          refreshChat();
+        },
+        onPartial: function () {
+          if (!current()) return;
+          state.note = 'This page’s notes are longer than ' + p.label + '’s free tier accepts in one request, so the buddy is reading the parts closest to your question.';
+        },
+        onModel: function (m, why) {
+          if (!current()) return;
+          state.models[pid] = m;
+          if (why === 'model') lsSet(p.modelLS, m);   // gone for good: do not ask for it again
+          state.note = 'Now answering with ' + m + '. ' + (why === 'day'
+            ? 'The first choice has used up today’s free allowance.'
+            : why === 'model' ? 'The first choice is no longer offered.' : 'The first choice was not answering.');
           refreshChat();
         }
       }).then(function () {
-        state.status = 'idle';
+        if (!current()) return;
+        state.status = 'idle'; state.waitText = '';
         refreshChat();
       }).catch(function (err) {
+        if (!current()) return;
+        var f = (err && err.failure) || {};
         var last = state.messages[state.messages.length - 1];
         if (last && last.role === 'assistant' && !last.content) state.messages.pop();
+        state.waitText = '';
         state.status = 'error';
         state.error = (err && err.message) || String(err);
         refreshChat();
+        if (f.kind === 'key') openSettings();
       });
     }
 
@@ -2219,6 +3017,7 @@ for (const [id, Comp] of mounts) {
       open: openChat, close: closeChat, toggle: toggleChat,
       reset: resetChat,
       destroy: function () {
+        stopRun();
         try { document.body.removeChild(btn); } catch (e) {}
         try { document.body.removeChild(modalOverlay); } catch (e) {}
         try { document.body.removeChild(chatPanel); } catch (e) {}
@@ -2226,7 +3025,22 @@ for (const [id, Comp] of mounts) {
     };
   }
 
-  window.TSIBuddy = { mount: mount, __loaded: true };
+  /* `providers` and `_internals` are read by the tests; pages only call mount. */
+
+  window.TSIBuddy = {
+    mount: mount, __loaded: true,
+    version: VERSION, flavour: FLAVOUR,
+    providers: PROVIDERS,
+    _internals: {
+      estimateTokens: estimateTokens, fitRequest: fitRequest, shrinkSystem: shrinkSystem,
+      chunkNotes: chunkNotes, parseWaitMs: parseWaitMs, readFailure: readFailure,
+      describeFailure: describeFailure, pickProvider: pickProvider, liveModel: liveModel,
+      providerOfKey: providerOfKey, runChat: runChat, spentModels: spentModels
+    }
+  };
+  } catch (e) {
+    try { console.error('TSIBuddy bootstrap error', e); } catch (_) {}
+  }
 })();
 
 </script>
