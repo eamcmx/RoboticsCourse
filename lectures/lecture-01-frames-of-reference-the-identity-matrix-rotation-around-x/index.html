@@ -443,11 +443,13 @@ rotX(90)"></div>
  * and a chat panel that streams responses progressively. The key persists in
  * localStorage and goes straight from the browser to that service.
  *
- * Two services, same chat-completions dialect, both streamed over SSE
+ * Four services, same chat-completions dialect, all streamed over SSE
  * (stream: true) with a single non-streaming response as the fallback when
  * the runtime doesn't expose ReadableStream:
- *   - Groq:    free keys, for anyone arriving new;
- *   - Mistral: for a key the student already has.
+ *   - OVHcloud:   no key at all, two questions a minute per model per network;
+ *   - OpenRouter: free key, 50 questions a day;
+ *   - Groq:       free key, 8000 tokens a minute per model;
+ *   - Mistral:    for a key the student already has.
  *
  * Designed to coexist with the React+htm widget already inside each hook
  * page. They use the same localStorage keys so a student who pastes their
@@ -480,7 +482,7 @@ rotX(90)"></div>
                   mount(), are used (the wizards). Otherwise 0.4 and the
                   default model, as this file always did. */
   var FLAVOUR = { place: 'bottom', lengthBar: false, lecturer: false };
-  var VERSION = '2026-10-10';
+  var VERSION = '2026-10-21';
 
   /* TSI_BUDDY_PROVIDERS. Mistral stopped issuing free API keys on
      21 September 2026, so a student who arrives today cannot get one; Groq
@@ -511,8 +513,59 @@ rotX(90)"></div>
          model (`outputCap`); a tutor's reply is far shorter than that.
      `models` is an order of preference, not a single name: when one is busy,
      gone, or has spent its day, the buddy moves to the next instead of
-     failing. */
+     failing. `rotateOnWait` says the minute allowance is counted per model,
+     so a busy model is a reason to ask the next one rather than to pause.
+
+     Two more services, 21 October 2026, because the Groq minute is tight:
+       - OVHcloud AI Endpoints answers WITHOUT a key: 2 requests a minute
+         per IP address and per model (measured: the third call in a minute
+         is refused 429 with `retry-after`, a header the page may read). A
+         classroom behind one address shares those 2 a minute, so it is the
+         way to start at once, not the way to work all evening. The gateway
+         refuses any field it does not know, include_reasoning among them.
+         Timed on a real lecture prompt (14,000 characters) with a Latvian
+         question: gpt-oss-20b first word 0.7 s, whole answer 6 s; Llama 3.3
+         1 s and 29 s; Qwen3.8 wrote the best Latvian but thought for 100 s
+         first; gpt-oss-120b took 24 s to its first word on a short prompt.
+         OVHcloud states that the data is not stored.
+       - OpenRouter gives free keys: 20 requests a minute and 50 a day on
+         its `:free` models, per account, whatever the model. Its free list
+         changes often, so `openrouter/free` (its own pick among the free
+         models) is the last choice. A free model may require the account
+         to allow its prompts to be used ("No endpoints found matching your
+         data policy"); the student is told where to change that.
+         Asked with a real free key on 22 October 2026 (a new account, its
+         privacy settings untouched: no data-policy refusal): minimax
+         m3.1-flash answered a Latvian question in 3.5 s, decently;
+         nemotron-3-ultra in 7 s; openrouter/free in 8.5 s, poor Latvian;
+         both gemma-4 were 429 "rate-limited upstream" (Google's shared
+         pool); nemotron-3-super 404 and nemotron-3.5-super-vl 502 from the
+         provider; inkling 403 "only available on agentic harnesses". So a
+         model that errors on the provider's side is passed over too. */
   var PROVIDERS = {
+    ovh: {
+      label: 'OVHcloud',
+      url: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions',
+      keyLS: '', modelLS: 'tsi_ovh_model',
+      keyless: true, keyPrefix: '',
+      keyPage: 'https://www.ovhcloud.com/en/public-cloud/ai-endpoints/', keyPageLabel: 'OVHcloud AI Endpoints',
+      placeholder: '',
+      models: ['gpt-oss-20b', 'Meta-Llama-3_3-70B-Instruct', 'Qwen3.8-27B', 'gpt-oss-120b'],
+      rotateOnWait: true, minuteCap: 0,
+      extra: function (model) { return /gpt-oss/.test(model) ? { reasoning_effort: 'low' } : {}; }
+    },
+    openrouter: {
+      label: 'OpenRouter',
+      url: 'https://openrouter.ai/api/v1/chat/completions',
+      keyLS: 'tsi_openrouter_key', modelLS: 'tsi_openrouter_model',
+      keyPrefix: 'sk-or-',
+      keyPage: 'https://openrouter.ai/settings/keys', keyPageLabel: 'openrouter.ai/settings/keys',
+      placeholder: 'paste your OpenRouter key (starts with "sk-or-")',
+      models: ['minimax/minimax-m3.1-flash:free', 'nvidia/nemotron-3-ultra-550b-a55b:free', 'google/gemma-4-31b-it:free', 'openrouter/free'],
+      rotateOnWait: true, minuteCap: 0,
+      headers: { 'X-Title': 'TSI Buddy' },
+      extra: function () { return { reasoning: { effort: 'low', exclude: true } }; }
+    },
     groq: {
       label: 'Groq',
       url: 'https://api.groq.com/openai/v1/chat/completions',
@@ -522,7 +575,11 @@ rotX(90)"></div>
       placeholder: 'paste your Groq key (starts with "gsk_")',
       models: ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'],
       outputCap: { 'qwen/qwen3.8-27b': 1000 },
-      minuteCap: 8000
+      rotateOnWait: true, minuteCap: 8000,
+      /* gpt-oss thinks before it answers, and the thinking is billed as
+         output. A tutor's short reply needs little of it: `low` measured 6
+         reasoning tokens against 51. */
+      extra: function (model) { return /gpt-oss/.test(model) ? { reasoning_effort: 'low', include_reasoning: false } : {}; }
     },
     mistral: {
       label: 'Mistral',
@@ -558,23 +615,28 @@ rotX(90)"></div>
   }
 
   /* Which service a student starts on. Their own choice wins. Without one, a
-     Mistral key that is already saved keeps them where they were, so nothing
+     key that is already saved keeps them where they were, so nothing
      changes for anyone the buddy already worked for. Everyone else starts on
-     the service that still hands out keys. */
+     the service that needs no key, so the buddy answers the first question
+     without a sign-up. */
   function pickProvider(preferred) {
     var saved = lsGet(PROVIDER_LS, '');
     if (PROVIDERS[saved]) return saved;
     if (lsGet(PROVIDERS.mistral.keyLS, '')) return 'mistral';
     if (lsGet(PROVIDERS.groq.keyLS, '')) return 'groq';
-    return PROVIDERS[preferred] ? preferred : 'groq';
+    if (lsGet(PROVIDERS.openrouter.keyLS, '')) return 'openrouter';
+    return PROVIDERS[preferred] ? preferred : 'ovh';
   }
 
   /* The key says which service it belongs to: Groq keys start with gsk_,
-     Mistral keys carry no prefix. Used to move a pasted key to the right
-     service instead of sending it to the wrong one and reporting a 401. */
+     OpenRouter keys with sk-or-, Mistral keys carry no prefix. Used to move
+     a pasted key to the right service instead of sending it to the wrong one
+     and reporting a 401. */
   function providerOfKey(key) {
     var k = String(key || '').trim();
-    return k.indexOf(PROVIDERS.groq.keyPrefix) === 0 ? 'groq' : '';
+    if (k.indexOf(PROVIDERS.groq.keyPrefix) === 0) return 'groq';
+    if (k.indexOf(PROVIDERS.openrouter.keyPrefix) === 0) return 'openrouter';
+    return '';
   }
 
   /* ---------- Styles (injected once) ---------- */
@@ -709,7 +771,9 @@ rotX(90)"></div>
 .tsi-buddy-note[hidden] { display: none; }
 .tsi-buddy-modal .tsi-buddy-help { margin: 12px 0 0; }
 .tsi-buddy-modal .tsi-buddy-hint { color: #b45309; font-size: 0.85em; margin: 6px 0 0; }
-.tsi-buddy-modal .tsi-buddy-hint[hidden] { display: none; }
+.tsi-buddy-modal .tsi-buddy-hint[hidden],
+.tsi-buddy-modal label[hidden],
+.tsi-buddy-modal input[hidden] { display: none; }
 .tsi-buddy-chat-foot {
   border-top: 1px solid #e2e8f0; padding: 10px 12px;
   display: flex; gap: 8px; align-items: flex-end;
@@ -1117,26 +1181,35 @@ rotX(90)"></div>
     return Math.ceil(total);
   }
 
-  /* What a failed call means, so runChat() can do something about it. The
-     browser cannot see the rate-limit headers of either service (neither
-     exposes them to a cross-origin page), so the wait is read from the text.
+  /* What a failed call means, so runChat() can do something about it. Groq
+     and Mistral do not expose their rate-limit headers to a cross-origin
+     page, so their wait is read from the text; OVHcloud does expose
+     `retry-after`, which callChat() passes in as `hdr.retryAfter`.
        key        the key was refused: only the student can fix that
        too_large  over the minute cap in one request: trim, never retry as is
        wait       over the minute cap for now: wait, then the same request
        day        the day's allowance is spent: another model, or tomorrow
-       model      the model is gone or not in the plan: another model */
-  function readFailure(providerId, status, bodyText) {
-    var j = null, msg = '', code = '';
+       model      the model is gone or not in the plan: another model
+       policy     OpenRouter: the account's privacy settings exclude the
+                  free model: another model, else the student changes it
+     `scope: 'account'` marks a limit counted over every model of the
+     service (OpenRouter's free allowance), where asking another model
+     cannot help. */
+  function readFailure(providerId, status, bodyText, hdr) {
+    var j = null, msg = '', code = '', meta = null;
     try { j = JSON.parse(bodyText); } catch (e) {}
     if (j) {
       var e1 = (j.error && typeof j.error === 'object') ? j.error : j;
       msg = e1.message || (typeof j.error === 'string' ? j.error : '') || j.detail || '';
       if (typeof msg !== 'string') msg = JSON.stringify(msg);
       code = String(e1.code || '') + ' ' + String(e1.type || '');
+      meta = (e1.metadata && typeof e1.metadata === 'object') ? e1.metadata : null;
+      // OpenRouter puts the upstream service's own words in metadata.raw.
+      if (meta && meta.raw) msg += ' ' + (typeof meta.raw === 'string' ? meta.raw : JSON.stringify(meta.raw));
     } else {
       msg = String(bodyText || '').slice(0, 300);
     }
-    var f = { kind: 'other', status: status, raw: msg, waitMs: 0, requested: 0, limit: 0 };
+    var f = { kind: 'other', status: status, raw: msg, waitMs: 0, requested: 0, limit: 0, scope: 'model' };
     var req = /Requested (\d+)/.exec(msg), lim = /Limit (\d+)/.exec(msg);
     if (req) f.requested = Number(req[1]);
     if (lim) f.limit = Number(lim[1]);
@@ -1147,26 +1220,47 @@ rotX(90)"></div>
       f.kind = 'wait';
       f.waitMs = parseWaitMs(msg) || 60000;
     }
-    else if (status === 413 || /request too large/i.test(msg)) f.kind = 'too_large';
-    else if (status === 404 || /model_not_found|model_decommissioned/.test(code)) f.kind = 'model';
-    else if (status === 403) f.kind = /model|tier/i.test(msg) ? 'model' : 'key';
+    else if (status === 413 || /request too large|maximum context length|length limit exceeded/i.test(msg)) f.kind = 'too_large';
+    else if (/data policy/i.test(msg)) f.kind = 'policy';
+    else if (status === 404 || /model_not_found|model_decommissioned|not a valid model/.test(code + ' ' + msg)) f.kind = 'model';
+    // A 403 about the model, or a free model gated to some apps only
+    // (OpenRouter: "only available on agentic harnesses"), is not the key's fault.
+    else if (status === 403) f.kind = /model|tier|only available|harness/i.test(msg) ? 'model' : 'key';
     else if (status === 429) {
       f.waitMs = parseWaitMs(msg);
-      f.kind = (/per day|\(RPD\)|\(TPD\)/i.test(msg) || f.waitMs > MAX_WAIT_MS) ? 'day' : 'wait';
+      if (/free-models-per-(day|min)/i.test(msg)) {
+        f.scope = 'account';
+        var reset = meta && meta.headers && Number(meta.headers['X-RateLimit-Reset']);
+        if (reset > 1e12) f.waitMs = Math.max(0, reset - Date.now());
+        f.kind = /per-day/i.test(msg) ? 'day' : 'wait';
+        if (f.kind === 'wait' && !f.waitMs) f.waitMs = 60000;
+      } else {
+        f.kind = (/per day|\(RPD\)|\(TPD\)/i.test(msg) || f.waitMs > MAX_WAIT_MS) ? 'day' : 'wait';
+      }
     }
     else if (status >= 500) f.kind = 'server';
+    if (f.kind === 'wait' && !f.waitMs && hdr && Number(hdr.retryAfter) > 0) {
+      f.waitMs = Math.ceil(Number(hdr.retryAfter) * 1000);
+    }
     return f;
   }
 
   // The sentence a student reads. The raw reply goes to the console.
   function describeFailure(providerId, f) {
-    var name = PROVIDERS[providerId].label;
+    var p = PROVIDERS[providerId], name = p.label;
     switch (f.kind) {
-      case 'key':       return name + ' did not accept this key. Open the settings (⚙) and paste a valid ' + name + ' key.';
+      case 'key':       return p.keyless
+        ? name + ' no longer answers without a key. Open the settings (⚙) and choose another service.'
+        : name + ' did not accept this key. Open the settings (⚙) and paste a valid ' + name + ' key.';
       case 'too_large': return 'This question and the page notes together are larger than ' + name + ' accepts in one request. Try a shorter question.';
-      case 'wait':      return name + ' is limiting requests right now. Wait a minute and ask again.';
-      case 'day':       return 'Today’s free allowance on ' + name + ' is used up for this key. It refills within 24 hours.';
+      case 'wait':      return p.keyless
+        ? name + ' is busy: without a key it answers two questions a minute for everyone on your network. Ask again in a minute, or use a free OpenRouter or Groq key (settings ⚙).'
+        : name + ' is limiting requests right now. Wait a minute and ask again.';
+      case 'day':       return 'Today’s free allowance on ' + name + ' is used up for this key. It refills within 24 hours.' +
+        (f.scope === 'account' ? ' Until then, choose OVHcloud (no key) in the settings (⚙).' : '');
       case 'model':     return name + ' does not offer the model this page asks for. Open the settings (⚙) and choose another model.';
+      case 'policy':    return 'Your OpenRouter account does not allow its free models yet. Open openrouter.ai/settings/privacy, allow the free models, and ask again.';
+      case 'empty':     return name + ' returned an empty answer. Ask again, or choose another model in the settings (⚙).';
       case 'server':    return name + ' had a problem answering (' + f.status + '). Try again in a moment.';
       case 'network':   return 'Could not reach ' + name + '. Check the connection. Some networks block it.';
       case 'stopped':   return '';
@@ -1195,23 +1289,25 @@ rotX(90)"></div>
       stream: true,
       messages: [{ role: 'system', content: systemPrompt }].concat(messages)
     };
-    /* gpt-oss thinks before it answers, and the thinking is billed as output.
-       A tutor's short reply needs little of it: `low` measured 6 reasoning
-       tokens against 51. Other models do not take these fields. */
-    if (String(model).indexOf('openai/gpt-oss') === 0) {
-      body.reasoning_effort = 'low';
-      body.include_reasoning = false;
-    }
-    return fetch(PROVIDERS[providerId].url, {
+    // Fields only some services or models take; a service that does not
+    // know a field may refuse the whole request (OVHcloud does).
+    var more = p.extra ? p.extra(model) : {};
+    for (var x in more) body[x] = more[x];
+    var headers = { 'Content-Type': 'application/json' };
+    if (!p.keyless) headers['Authorization'] = 'Bearer ' + apiKey;
+    for (var h in (p.headers || {})) headers[h] = p.headers[h];
+    return fetch(p.url, {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify(body),
       signal: signal
     }).then(function (r) {
       if (!r.ok) {
+        var retryAfter = null;
+        try { retryAfter = r.headers && r.headers.get ? r.headers.get('retry-after') : null; } catch (e) {}
         return r.text().then(function (t) {
-          var e = new Error(PROVIDERS[providerId].label + ' ' + r.status + ': ' + (t || 'request failed'));
-          e.failure = readFailure(providerId, r.status, t);
+          var e = new Error(p.label + ' ' + r.status + ': ' + (t || 'request failed'));
+          e.failure = readFailure(providerId, r.status, t, { retryAfter: retryAfter });
           throw e;
         });
       }
@@ -1241,8 +1337,18 @@ rotX(90)"></div>
             if (ln.indexOf('data: ') !== 0) continue;
             var s = ln.substring(6).trim();
             if (s === '[DONE]') return done();
+            var d = null;
+            try { d = JSON.parse(s); } catch (e) {}
+            /* A limit met after the reply began arrives as an event, not as
+               an HTTP status (OpenRouter). Before any text it is an ordinary
+               refusal; after some, the student keeps what arrived. */
+            if (d && d.error) {
+              if (full.trim()) return done();
+              var se = new Error(p.label + ' error');
+              se.failure = readFailure(providerId, Number(d.error.code) || 500, JSON.stringify({ error: d.error }));
+              throw se;
+            }
             try {
-              var d = JSON.parse(s);
               if (d.usage && d.usage.prompt_tokens) { promptTokens = d.usage.prompt_tokens; usage = d.usage; }
               if (d.choices && d.choices[0] && d.choices[0].delta && d.choices[0].delta.content) {
                 full += d.choices[0].delta.content;
@@ -1271,7 +1377,7 @@ rotX(90)"></div>
   function runChat(job, hooks) {
     var p = PROVIDERS[job.providerId];
     var model = job.model, refits = 0, waits = 0, tried = {}, busy = {};
-    var maxWaits = p.minuteCap ? 3 : 1;
+    var maxWaits = p.rotateOnWait ? 3 : 1;
 
     function nextModel() {
       tried[model] = true;
@@ -1297,6 +1403,11 @@ rotX(90)"></div>
       var fit = fitRequest(job.systemPrompt, job.messages, p.minuteCap, job.cal.scale);
       if (fit.partial && hooks.onPartial) hooks.onPartial();
       return callChat(job.providerId, job.key, model, fit.system, fit.messages, hooks.onDelta, job.signal, job.temperature).then(function (res) {
+        // A thinking model can spend the whole allowance thinking and say
+        // nothing (measured on OVHcloud's Qwen3.6). Another model may answer.
+        if (!res.text) throw failure('empty', { status: 200 });
+        return res;
+      }).then(function (res) {
         if (res.usage && hooks.onUsage) hooks.onUsage(res.usage);
         if (res.promptTokens && fit.estimate) {
           // The ratio is learned from this request, but the next one may carry
@@ -1322,21 +1433,30 @@ rotX(90)"></div>
           // The minute allowance is counted per model, so a second model can
           // answer now while the first one refills. Pause only when every
           // model is busy, and then only until the first of them is free.
-          if (p.minuteCap) {
+          // A limit counted over the whole account is waited out at once.
+          if (p.rotateOnWait && f.scope !== 'account') {
             var other = nextModel();
             if (other) { model = other; return attempt(); }
           }
           if (waits < maxWaits) {
             waits++;
+            // On a tie the model higher on the list goes first: on OVHcloud
+            // every model is refused for the same minute, and the last one
+            // is the slow one.
             var soonest = model;
-            for (var b in busy) if (busy[b] < busy[soonest]) soonest = b;
+            for (var b in busy) {
+              if (busy[b] < busy[soonest] || (busy[b] === busy[soonest] && p.models.indexOf(b) < p.models.indexOf(soonest))) soonest = b;
+            }
             var ms = busy[soonest];
             model = soonest; tried = {}; busy = {};
             return pause(ms + 400).then(attempt);
           }
         }
-        if (f.kind === 'day' || f.kind === 'model' || f.kind === 'wait') {
-          if (f.kind !== 'wait') spentModels[job.providerId + '|' + model] = true;
+        // On a service of many models, one that fails on the provider's side
+        // (OpenRouter's free models do, often) hands over to the next.
+        var rotate = { day: 1, model: 1, wait: 1, policy: 1, empty: 1, server: p.rotateOnWait ? 1 : 0 };
+        if (rotate[f.kind] && f.scope !== 'account') {
+          if (f.kind !== 'wait' && f.kind !== 'empty' && f.kind !== 'server') spentModels[job.providerId + '|' + model] = true;
           var m = nextModel();
           if (m) {
             model = m; waits = 0; refits = 0;
@@ -1382,10 +1502,12 @@ rotX(90)"></div>
     // One key and one model per service, so switching service loses nothing.
     var state = {
       provider: pickProvider(opts.provider),
-      keys:   { groq: lsGet(PROVIDERS.groq.keyLS, ''), mistral: lsGet(PROVIDERS.mistral.keyLS, '') },
+      keys:   { ovh: '', openrouter: lsGet(PROVIDERS.openrouter.keyLS, ''), groq: lsGet(PROVIDERS.groq.keyLS, ''), mistral: lsGet(PROVIDERS.mistral.keyLS, '') },
       models: {
-        groq:    liveModel('groq', lsGet(PROVIDERS.groq.modelLS, '')),
-        mistral: liveModel('mistral', lsGet(PROVIDERS.mistral.modelLS, (FLAVOUR.lecturer && opts.model) || 'ministral-8b-2512'))
+        ovh:        liveModel('ovh', lsGet(PROVIDERS.ovh.modelLS, '')),
+        openrouter: liveModel('openrouter', lsGet(PROVIDERS.openrouter.modelLS, '')),
+        groq:       liveModel('groq', lsGet(PROVIDERS.groq.modelLS, '')),
+        mistral:    liveModel('mistral', lsGet(PROVIDERS.mistral.modelLS, (FLAVOUR.lecturer && opts.model) || 'ministral-8b-2512'))
       },
       temperature: FLAVOUR.lecturer ? ((typeof opts.temperature === 'number') ? opts.temperature : 0.15) : 0.4,
       verbosity: lsGet(VERB_LS, 'standard'),
@@ -1405,6 +1527,8 @@ rotX(90)"></div>
     if (state.verbosity !== 'brief' && state.verbosity !== 'detailed') state.verbosity = 'standard';
     function key()      { return (state.keys[state.provider] || '').trim(); }
     function provider() { return PROVIDERS[state.provider]; }
+    // Ready to ask: a key, or a service that needs none.
+    function ready()    { return !!(provider().keyless || key()); }
     if (key()) state.enabled = true; // having a key implies enabled
 
     // ---- Floating button ----
@@ -1415,7 +1539,7 @@ rotX(90)"></div>
       class: 'tsi-buddy-btn',
       title: 'TSI Buddy — your study companion',
       onclick: function () {
-        if (key()) toggleChat();
+        if (ready() && state.enabled) toggleChat();
         else openSettings();
       }
     }, [btnDot, btnLabel, btnState]);
@@ -1423,8 +1547,15 @@ rotX(90)"></div>
 
     // ---- Settings modal ----
     var providerSelect = el('select', {
-      onchange: function (e) { state.provider = e.target.value; refreshSettings(); }
+      onchange: function (e) {
+        state.provider = e.target.value;
+        // Choosing the service that needs no key is choosing to use it.
+        if (provider().keyless && !state.enabled) { state.enabled = true; enableBox.checked = true; }
+        refreshSettings();
+      }
     }, [
+      el('option', { value: 'ovh' }, 'OVHcloud (no key, 2 questions a minute)'),
+      el('option', { value: 'openrouter' }, 'OpenRouter (free key, 50 questions a day)'),
       el('option', { value: 'groq' }, 'Groq (free key)'),
       el('option', { value: 'mistral' }, 'Mistral (a key you already have)')
     ]);
@@ -1476,6 +1607,7 @@ rotX(90)"></div>
       keyLabel.textContent = p.label + ' API key';
       keyInput.placeholder = p.placeholder;
       keyInput.value = state.keys[state.provider] || '';
+      keyLabel.hidden = keyInput.hidden = !!p.keyless;
       while (modelSelect.firstChild) modelSelect.removeChild(modelSelect.firstChild);
       // A model saved earlier that is not on the list is still offered, so
       // opening the settings never changes what the student is using.
@@ -1487,14 +1619,22 @@ rotX(90)"></div>
       });
       while (helpLine.firstChild) helpLine.removeChild(helpLine.firstChild);
       var link = el('a', { href: p.keyPage, target: '_blank', rel: 'noopener noreferrer' }, p.keyPageLabel);
-      if (state.provider === 'groq') {
+      if (state.provider === 'ovh') {
+        helpLine.appendChild(el('small', null, 'No key and no sign-up: press Save and ask. '));
+        helpLine.appendChild(link);
+        helpLine.appendChild(el('small', null, ' answers two questions a minute per model for each network, so in a busy classroom the buddy may pause. OVHcloud states that it does not store what you send. For more questions, get a free OpenRouter or Groq key.'));
+      } else if (state.provider === 'openrouter') {
+        helpLine.appendChild(el('small', null, 'Get a free key at '));
+        helpLine.appendChild(link);
+        helpLine.appendChild(el('small', null, ': sign in, press Create API Key, and paste it here. The key stays in your browser only. The free models allow 50 questions a day. If the buddy says your account does not allow free models, open openrouter.ai/settings/privacy and allow them.'));
+      } else if (state.provider === 'groq') {
         helpLine.appendChild(el('small', null, 'Get a free key at '));
         helpLine.appendChild(link);
         helpLine.appendChild(el('small', null, ': sign in, press Create API Key, and paste it here. The key stays in your browser only. The free tier allows about 8,000 tokens a minute, so the buddy may pause for some seconds between questions.'));
       } else {
         helpLine.appendChild(el('small', null, 'Mistral stopped giving out free keys on 21 September 2026. A key you already have keeps working (see '));
         helpLine.appendChild(link);
-        helpLine.appendChild(el('small', null, '). No key? Choose Groq above. The key stays in your browser only.'));
+        helpLine.appendChild(el('small', null, '). No key? Choose OVHcloud above (no key needed), or OpenRouter or Groq (free keys). The key stays in your browser only.'));
       }
       refreshKeyHint();
     }
@@ -1612,7 +1752,7 @@ rotX(90)"></div>
 
     // ---- Render ----
     function refreshButton() {
-      if (key() && state.enabled) { btn.classList.add('tsi-on'); btnState.textContent = 'ON'; }
+      if (ready() && state.enabled) { btn.classList.add('tsi-on'); btnState.textContent = 'ON'; }
       else                        { btn.classList.remove('tsi-on'); btnState.textContent = 'off'; }
     }
     function autosize(t) {
@@ -1620,7 +1760,7 @@ rotX(90)"></div>
       t.style.height = Math.min(140, Math.max(36, t.scrollHeight)) + 'px';
     }
     function canSend() {
-      return !!(key() && state.enabled && state.pending.trim() && state.status !== 'loading');
+      return !!(ready() && state.enabled && state.pending.trim() && state.status !== 'loading');
     }
     function refreshSendBtn() { sendBtn.disabled = !canSend(); }
     function refreshStartBar() {
@@ -1666,12 +1806,21 @@ rotX(90)"></div>
     }
 
     // ---- Behaviour ----
-    function openSettings()  { refreshSettings(); modalOverlay.hidden = false; setTimeout(function () { keyInput.focus(); }, 50); }
+    function openSettings()  {
+      // First visit, on the service that needs no key: Save is all it takes.
+      // A student who switched the buddy off before is left switched off.
+      if (provider().keyless && !state.enabled && lsGet(ENABLE_LS, null) === null) { state.enabled = true; enableBox.checked = true; }
+      refreshSettings(); modalOverlay.hidden = false; setTimeout(function () { keyInput.focus(); }, 50);
+    }
     function closeSettings() { modalOverlay.hidden = true; }
     function saveSettings() {
+      state.keys.openrouter = (state.keys.openrouter || '').trim();
       state.keys.groq = (state.keys.groq || '').trim();
       state.keys.mistral = (state.keys.mistral || '').trim();
       lsSet(PROVIDER_LS, state.provider);
+      lsSet(PROVIDERS.ovh.modelLS, state.models.ovh || PROVIDERS.ovh.models[0]);
+      lsSet(PROVIDERS.openrouter.keyLS, state.keys.openrouter);
+      lsSet(PROVIDERS.openrouter.modelLS, state.models.openrouter || PROVIDERS.openrouter.models[0]);
       lsSet(PROVIDERS.groq.keyLS, state.keys.groq);
       lsSet(PROVIDERS.groq.modelLS, state.models.groq || PROVIDERS.groq.models[0]);
       lsSet(KEY_LS, state.keys.mistral);
@@ -1680,7 +1829,7 @@ rotX(90)"></div>
       state.status = 'idle'; state.error = '';
       closeSettings();
       refreshButton();
-      if (key() && state.enabled) openChat();
+      if (ready() && state.enabled) openChat();
     }
     function openChat()  { state.open = true; chatPanel.hidden = false; refreshChat(); inputBox.focus(); }
     function closeChat() { state.open = false; chatPanel.hidden = true; }
@@ -1699,7 +1848,7 @@ rotX(90)"></div>
     }
     function sendUserMessage() {
       var draft = (state.pending || '').trim();
-      if (!draft || !key() || state.status === 'loading') return;
+      if (!draft || !ready() || state.status === 'loading') return;
       var userMsg = { role: 'user', content: draft };
       state.messages.push(userMsg);
       state.messages.push({ role: 'assistant', content: '' });
@@ -1749,8 +1898,10 @@ rotX(90)"></div>
         },
         onWait: function (seconds) {
           if (!current()) return;
-          state.waitText = 'Free-tier pause. ' + p.label + ' allows about ' + p.minuteCap.toLocaleString('en-US') +
-            ' tokens a minute. Continuing in ' + seconds + ' s…';
+          state.waitText = 'Free-tier pause. ' + p.label + (p.minuteCap
+            ? ' allows about ' + p.minuteCap.toLocaleString('en-US') + ' tokens a minute.'
+            : p.keyless ? ' answers two questions a minute per model on your network.'
+            : ' is limiting requests for a moment.') + ' Continuing in ' + seconds + ' s…';
           refreshChat();
         },
         onPartial: function () {
